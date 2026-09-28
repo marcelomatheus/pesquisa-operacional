@@ -47,27 +47,27 @@ const capabilities = [
 const team = [
   {
     number: '01',
-    name: 'Integrante 01',
-    role: 'Produto e Front-end',
+    name: 'Marcelo Matheus Silva de Oliveira',
+    role: 'Desenvolvedor Full Stack',
     scope: 'Wireframes, design system, editor do modelo, navegação e integração visual.',
   },
   {
     number: '02',
-    name: 'Integrante 02',
-    role: 'Simplex e Dual',
-    scope: 'Normalização, duas fases, tableaux, modelo dual, dual simplex e testes matemáticos.',
+    name: 'João Gabriel Reis Carvalho',
+    role: 'Desenvolvedor Full Stack',
+    scope: 'Contratos da API, integração, testes do fluxo, relatório, evidências e apresentação.',
   },
   {
     number: '03',
-    name: 'Integrante 03',
-    role: 'Gráficos e Inteiros',
+    name: 'Lucas Nunes Freire',
+    role: 'Analista de Qualidade - Módulo Gráficos e inteiros',
     scope: 'Região viável, curvas de nível, pontos inteiros, arredondamento e Branch and Bound.',
   },
   {
     number: '04',
-    name: 'Integrante 04',
-    role: 'API, Qualidade e Documentação',
-    scope: 'Contratos da API, integração, testes do fluxo, relatório, evidências e apresentação.',
+    name: 'Thiago Rocha Raposo',
+    role: 'Simplex e dual',
+    scope: 'Normalização, duas fases, tableaux, dual, dual simplex e testes matemáticos.',
   },
 ];
 
