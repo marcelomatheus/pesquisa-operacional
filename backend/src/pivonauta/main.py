@@ -8,17 +8,19 @@ import uuid
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from . import __version__
 from .domain import InvalidModel
 from .branch_bound import solve_branch_bound
-from .schemas import AnalysisRequest, GeometryRequest, IntegerRequest, ModelRequest, SolveRequest
+from .schemas import AnalysisRequest, GeometryRequest, IntegerRequest, ModelRequest, ReportRequest, SolveRequest
 from .duality import solve_dual
 from .alternatives import analyze_optima
 from .geometry import build_geometry
 from .simplex import solve_simplex
 from .standard_form import describe_standard_form
+from .report_data import collect_report
+from .report_pdf import build_report_pdf
 
 logger = logging.getLogger("pivonauta")
 app = FastAPI(title="PivôNauta API", version=__version__, description="Simplex and Branch and Bound, handcrafted in pure Python")
@@ -137,3 +139,20 @@ def calculate_geometry(request: GeometryRequest):
 @app.post("/api/v1/models/standard-form")
 def standard_form(request: ModelRequest):
     return describe_standard_form(request.model.to_domain())
+
+
+
+@app.post("/api/v1/reports/pdf")
+def generate_pdf_report(request: ReportRequest):
+    model = request.model.to_domain()
+    report = collect_report(model, request.options)
+    document = build_report_pdf(report)
+    return Response(
+        content=document,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'attachment; filename="pivonauta-relatorio.pdf"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
