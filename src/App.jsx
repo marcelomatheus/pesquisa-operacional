@@ -1,22 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { AppShell } from './components/AppShell';
-import { activitySeed, examples } from './data';
-import { Dashboard } from './screens/Dashboard';
-import { Editor } from './screens/Editor';
-import { Help } from './screens/Help';
-import { Library } from './screens/Library';
-import { Landing } from './screens/Landing';
-import { Review } from './screens/Review';
-import {
-  AnalysisResult,
-  DualResult,
-  GraphResult,
-  IntegerResult,
-  ReportResult,
-  SimplexResult,
-  SummaryResult,
-} from './screens/Results';
+import { LiveInteger, LiveReport, LiveSimplex, LiveSummary, PendingAnalysis } from './screens/LiveResults';
+import { modelFingerprint, solveInteger, solveModel } from './services/solverApi';
 
 function cloneModel(model) {
   return JSON.parse(JSON.stringify(model));
@@ -26,9 +9,18 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const [model, setModel] = useState(() => cloneModel(examples[0]));
-  const [logs, setLogs] = useState(activitySeed);
+  const [logs, setLogs] = useState([]);
   const [selectedEntity, setSelectedEntity] = useState('Modelo matemático');
   const [solving, setSolving] = useState(false);
+  const [solveError, setSolveError] = useState('');
+  const [run, setRun] = useState(null);
+  const [integerTask, setIntegerTask] = useState(null);
+  const integerPendingRef = useRef(false);
+  const fingerprint = modelFingerprint(model);
+  const latestFingerprintRef = useRef(fingerprint);
+  latestFingerprintRef.current = fingerprint;
+  const result = run?.fingerprint === fingerprint ? run.data : null;
+  const currentIntegerTask = integerTask?.fingerprint === fingerprint ? integerTask : null;
 
   const pushLog = useCallback((entry) => {
     setLogs((current) => [entry, ...current].slice(0, 8));
@@ -53,17 +45,51 @@ export default function App() {
     navigate('/editor');
   }, [navigate, pushLog]);
 
-  const solve = useCallback(() => {
+  const solve = useCallback(async () => {
     if (solving) return;
+    const inputFingerprint = modelFingerprint(model);
     setSolving(true);
-    pushLog({ tone: 'amber', text: 'Inicializando forma padrão e variáveis auxiliares', time: 'agora' });
-    window.setTimeout(() => pushLog({ tone: 'violet', text: 'Pivoteamento concluído em 4 tableaus', time: 'agora' }), 650);
-    window.setTimeout(() => pushLog({ tone: 'success', text: `Ótimo global certificado: Z = ${model.optimum.z}`, time: 'agora' }), 1250);
-    window.setTimeout(() => {
-      setSolving(false);
+    setSolveError('');
+    pushLog({ tone: 'violet', text: 'Executando Simplex tabular com a API Python', time: 'agora' });
+    try {
+      const calculated = await solveModel(model);
+      if (latestFingerprintRef.current !== inputFingerprint) return;
+      setRun({ fingerprint: inputFingerprint, data: calculated });
+      setIntegerTask(null);
+      pushLog({ tone: calculated.status === 'optimal' ? 'success' : 'amber',
+        text: `Simplex: ${calculated.status} · ${calculated.pivot_count} pivoteamentos`, time: 'agora' });
       navigate('/results/summary');
-    }, 1750);
-  }, [model.optimum.z, navigate, pushLog, solving]);
+    } catch (error) {
+      if (latestFingerprintRef.current === inputFingerprint) {
+        setSolveError(error.message || 'Falha ao executar Simplex');
+        pushLog({ tone: 'amber', text: `Falha: ${error.message}`, time: 'agora' });
+      }
+    } finally {
+      setSolving(false);
+    }
+  }, [model, solving, pushLog, navigate]);
+
+  const calculateInteger = useCallback(async () => {
+    if (!result || result.status !== 'optimal' || integerPendingRef.current) return;
+    const inputFingerprint = modelFingerprint(model);
+    integerPendingRef.current = true;
+    setIntegerTask({ fingerprint: inputFingerprint, state: 'loading' });
+    pushLog({ tone: 'violet', text: 'Iniciando Branch and Bound com Simplex próprio', time: 'agora' });
+    try {
+      const calculated = await solveInteger(model);
+      if (latestFingerprintRef.current !== inputFingerprint) return;
+      setIntegerTask({ fingerprint: inputFingerprint, state: 'success', data: calculated });
+      pushLog({ tone: calculated.status === 'optimal' ? 'success' : 'amber',
+        text: `Branch and Bound: ${calculated.status} · ${calculated.explored_nodes} nós`, time: 'agora' });
+    } catch (error) {
+      if (latestFingerprintRef.current === inputFingerprint) {
+        setIntegerTask({ fingerprint: inputFingerprint, state: 'error', error: error.message });
+        pushLog({ tone: 'amber', text: `Falha da busca inteira: ${error.message}`, time: 'agora' });
+      }
+    } finally {
+      integerPendingRef.current = false;
+    }
+  }, [model, result, pushLog]);
 
   useEffect(() => {
     const context = typeof document === 'undefined' ? undefined : document.modelContext;
@@ -80,7 +106,7 @@ export default function App() {
     register({
       name: 'read_active_linear_model',
       title: 'Ler modelo linear ativo',
-      description: 'Retorna a formulação, as restrições e as soluções demonstrativas atualmente visíveis no PivôNauta.',
+      description: 'Retorna a formulação, as restrições e as última execução real quando disponível no PivôNauta.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true, untrustedContentHint: false },
       execute: async () => ({
@@ -89,8 +115,8 @@ export default function App() {
         sense: model.sense,
         objective: model.objective,
         constraints: model.constraints,
-        continuousOptimum: model.optimum,
-        integerOptimum: model.integer,
+        continuousSolution: result,
+        integerSolution: currentIntegerTask?.state === 'success' ? currentIntegerTask.data : null,
       }),
     });
 
@@ -143,18 +169,18 @@ export default function App() {
     register({
       name: 'start_model_solution',
       title: 'Iniciar solução do modelo',
-      description: 'Abre a revisão e inicia a execução demonstrativa do Simplex para o modelo ativo.',
+      description: 'Abre a revisão e inicia a execução real do Simplex no backend para o modelo ativo.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute: async () => {
         navigate('/review');
         window.setTimeout(solve, 120);
-        return { status: 'started', model: model.name, method: 'simplex-tabular' };
+        return { status: 'submitted', model: model.name, method: 'simplex-tabular' };
       },
     });
 
     return () => lifecycle.abort();
-  }, [model, navigate, pushLog, solve]);
+  }, [model, result, currentIntegerTask, navigate, pushLog, solve]);
 
   const shellProps = useMemo(() => ({ model, setModel, logs, selectedEntity, setSelectedEntity, onNewModel: createNewModel }), [createNewModel, model, logs, selectedEntity]);
 
@@ -165,17 +191,17 @@ export default function App() {
   return (
     <AppShell {...shellProps}>
       <Routes location={location} key={location.pathname}>
-        <Route path="/workspace" element={<Dashboard model={model} onNewModel={createNewModel} />} />
+        <Route path="/workspace" element={<Dashboard model={model} result={result} integerTask={currentIntegerTask} onNewModel={createNewModel} />} />
         <Route path="/library" element={<Library model={model} setModel={setModel} pushLog={pushLog} />} />
         <Route path="/editor" element={<Editor model={model} setModel={setModel} pushLog={pushLog} setSelectedEntity={setSelectedEntity} />} />
-        <Route path="/review" element={<Review model={model} solve={solve} solving={solving} />} />
-        <Route path="/results/summary" element={<SummaryResult model={model} />} />
-        <Route path="/results/simplex" element={<SimplexResult />} />
-        <Route path="/results/graph" element={<GraphResult />} />
-        <Route path="/results/integer" element={<IntegerResult model={model} />} />
-        <Route path="/results/dual" element={<DualResult />} />
-        <Route path="/results/analysis" element={<AnalysisResult />} />
-        <Route path="/results/report" element={<ReportResult model={model} />} />
+        <Route path="/review" element={<Review model={model} solve={solve} solving={solving} solveError={solveError} />} />
+        <Route path="/results/summary" element={<LiveSummary model={model} result={result} integerTask={currentIntegerTask} />} />
+        <Route path="/results/simplex" element={<LiveSimplex result={result} />} />
+        <Route path="/results/graph" element={<PendingAnalysis area="graph" />} />
+        <Route path="/results/integer" element={<LiveInteger result={result} task={currentIntegerTask} onStart={calculateInteger} />} />
+        <Route path="/results/dual" element={<PendingAnalysis area="dual" />} />
+        <Route path="/results/analysis" element={<PendingAnalysis area="analysis" />} />
+        <Route path="/results/report" element={<LiveReport model={model} result={result} integerTask={currentIntegerTask} />} />
         <Route path="/help" element={<Help />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
