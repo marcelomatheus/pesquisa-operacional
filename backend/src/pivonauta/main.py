@@ -18,6 +18,7 @@ from .duality import solve_dual
 from .alternatives import analyze_optima
 from .geometry import build_geometry
 from .simplex import solve_simplex
+from .standard_form import describe_standard_form
 
 logger = logging.getLogger("pivonauta")
 app = FastAPI(title="PivôNauta API", version=__version__, description="Simplex and Branch and Bound, handcrafted in pure Python")
@@ -131,3 +132,8 @@ def analyze_alternative_optima(request: AnalysisRequest):
 def calculate_geometry(request: ModelRequest):
     model = request.model.to_domain()
     return build_geometry(model).to_dict()
+
+
+@app.post("/api/v1/models/standard-form")
+def standard_form(request: ModelRequest):
+    return describe_standard_form(request.model.to_domain())

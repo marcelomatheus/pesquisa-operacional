@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass
 from time import monotonic
 
 from .domain import LinearProgram, is_feasible, objective_value
+from .tableau_trace import pivot_operations
 
 
 @dataclass(slots=True)
@@ -158,6 +159,10 @@ def solve_simplex(model: LinearProgram, *, max_iterations: int = 500,
                 "basis": [columns[index] for index in basis],
                 "matrix": [[0.0 if abs(v) < tolerance else v for v in row] for row in tableau],
                 "pivot": pivot,
+                "row_operations": pivot_operations(tableau, pivot["row"], pivot["column"], tolerance)
+                if event == "pivot" and pivot and "row" in pivot and "column" in pivot else [],
+                "reduced_costs": [{"column": columns[j], "value": -tableau[0][j]}
+                                  for j in range(len(columns)) if j not in basis],
             })
 
     def run(phase: str, allowed: list[int]) -> str:
