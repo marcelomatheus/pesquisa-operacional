@@ -55,7 +55,7 @@ test('geometria, dualidade, múltiplos ótimos e Branch and Bound respondem', as
   await solveModel(page);
   await page.goto('/#/results/graph');
   await expect(page.locator('.pr6-plot svg')).toBeVisible();
-  await expect(page.getByText('Curvas de nível')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Curvas de nível' })).toBeVisible();
   await page.goto('/#/results/dual');
   await expect(page.getByRole('heading', { name: 'Modelo dual' })).toBeVisible();
   await expect(page.getByText(/Dualidade forte verificada/)).toBeVisible();
@@ -95,7 +95,7 @@ test('JSON inválido não altera modelo e biblioteca recupera o salvo', async ({
   await expect(page.locator('main .model-name-input')).toHaveValue('Wyndor E2E');
   await page.goto('/#/library');
   await page.getByRole('button', { name: 'Salvar modelo ativo' }).click();
-  await expect(page.getByText('Wyndor E2E')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Wyndor E2E' })).toBeVisible();
   await page.reload();
   await page.goto('/#/editor');
   await expect(page.locator('main .model-name-input')).toHaveValue('Wyndor E2E');
