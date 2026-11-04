@@ -559,3 +559,12 @@ Foram implementadas sobreposições geométricas calculadas no backend (`level_l
 A árvore visual utiliza relações reais entre os nós do Branch and Bound e inclui a inspeção de tableaux da relaxação de cada nó por reconstrução de decisões estruturadas. Os testes cobrem níveis da função objetivo, viabilidade de pontos inteiros, reconstrução de ramificações e rotas de API.
 
 Pendências para os próximos PRs: relatório PDF completo, testes E2E, robustez numérica em escala e revisão do limite de restrições para visualização de tableaux de nós profundos. A revisão arquitetural está em `docs/REVISAO_ARQUITETURA_PR6.md`.
+
+
+## Registro de evolução — PR #7 (04/11/2026)
+
+A etapa de geração de relatórios foi implementada no backend com coleta independente de resultados matemáticos, composição de páginas em ReportLab e desenhos vetoriais de geometria e da árvore Branch and Bound. Foi criado `POST /api/v1/reports/pdf`, com seleção de capítulos, limite de tableaux e modo inteiro parametrizável.
+
+No frontend, a tela de relatório oferece seleção de seções, pré-visualização, download e estados de erro. O PDF contém status e avisos explícitos para resultados não certificados, trilhas amostradas e análises não aplicáveis. A revisão de arquitetura encontra-se em `docs/REVISAO_ARQUITETURA_PR7.md`.
+
+Próxima etapa: PR #8 — testes E2E, robustez, deploy, revisão visual de PDF em navegador, melhoria de segurança e preparação do seminário.

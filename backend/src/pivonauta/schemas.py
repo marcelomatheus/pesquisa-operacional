@@ -110,3 +110,25 @@ class GeometryOptions(StrictModel):
 
 class GeometryRequest(ModelRequest):
     options: GeometryOptions = Field(default_factory=GeometryOptions)
+
+
+
+class ReportOptions(StrictModel):
+    sections: list[Literal["model", "simplex", "integer", "geometry", "dual", "alternatives"]] = Field(
+        default_factory=lambda: ["model", "simplex", "integer", "geometry", "dual", "alternatives"],
+        min_length=1, max_length=6,
+    )
+    max_tableaux: int = Field(default=30, ge=1, le=100)
+    max_nodes: int = Field(default=200, ge=1, le=200)
+    integer_mode: Literal["declared", "all_integer"] = "declared"
+
+    @field_validator("sections")
+    @classmethod
+    def unique_sections(cls, value):
+        if len(set(value)) != len(value):
+            raise ValueError("Report sections must be unique")
+        return value
+
+
+class ReportRequest(ModelRequest):
+    options: ReportOptions = Field(default_factory=ReportOptions)

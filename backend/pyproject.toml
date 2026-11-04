@@ -7,10 +7,10 @@ name = "pivonauta-backend"
 version = "0.1.0"
 description = "PivôNauta API with pure-Python Simplex and Branch and Bound"
 requires-python = ">=3.11"
-dependencies = ["fastapi>=0.115,<1", "pydantic>=2,<3", "uvicorn>=0.30,<1"]
+dependencies = ["fastapi>=0.115,<1", "pydantic>=2,<3", "uvicorn>=0.30,<1", "reportlab>=4.2,<5"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10", "httpx>=0.27,<1", "ruff>=0.8,<1", "mypy>=1.12,<2"]
+dev = ["pytest>=8,<10", "httpx>=0.27,<1", "ruff>=0.8,<1", "mypy>=1.12,<2", "pypdf>=5,<7"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

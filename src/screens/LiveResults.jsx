@@ -120,45 +120,4 @@ export function LiveInteger({ model, result, task, onStart, setSelectedEntity })
   </div>;
 }
 
-export function LiveReport({ model, result, integerTask }) {
-  const download = () => {
-    const lines = [
-      'PIVÔNAUTA — RELATÓRIO DE OTIMIZAÇÃO',
-      `Modelo: ${model.name}`,
-      `Objetivo: ${model.sense} Z = ${model.objective.join(' ; ')}`,
-      ...model.constraints.map((c, i) => `R${i + 1}: [${c.coefficients.join(', ')}] ${c.operator} ${c.rhs}`),
-      '',
-      `Simplex: ${result.status}`,
-      `Valor objetivo: ${result.objective_value ?? 'indisponível'}`,
-      `Variáveis: ${JSON.stringify(result.variables)}`,
-      `Pivoteamentos: ${result.pivot_count}`,
-      ...result.iterations.map((t, i) => [
-        '', `Tableau ${i + 1}: ${t.phase} - ${t.event}`,
-        `Colunas: ${t.columns.join(', ')}`,
-        ...t.matrix.map((row, index) => `${index === 0 ? 'Z' : t.basis[index - 1]}: ${row.join(', ')}`),
-      ].join('\n')),
-    ];
-    if (integerTask?.state === 'success') {
-      lines.push('', 'PROGRAMACAO INTEIRA', `Status: ${integerTask.data.status}`,
-        `Objetivo: ${integerTask.data.objective_value}`,
-        `Variáveis: ${JSON.stringify(integerTask.data.variables)}`,
-        `Nós explorados: ${integerTask.data.explored_nodes}`);
-    }
-    const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' }));
-    const anchor = document.createElement('a');
-    anchor.href = url; anchor.download = 'relatorio-pivonauta.txt'; anchor.click();
-    URL.revokeObjectURL(url);
-  };
-  return <div className="page result-page report-page">
-    <PageHeading title="Relatório técnico" label="Exportação dos cálculos reais" description="Relatório textual gerado exclusivamente a partir do motor matemático." action={
-      <button className="button button--primary" disabled={!result} onClick={download}><Download size={17} />Exportar TXT</button>
-    } />
-    {!result ? <NeedSolve /> : <section className="panel" style={{ padding: 24 }}>
-      <h2>{model.name}</h2><p>Simplex: {SOLVE_STATUSES[result.status] || result.status}</p>
-      <p>Objetivo: {displayNumber(result.objective_value)}</p>
-      <p><Vector values={result.variables} /></p>
-      <p>{result.iterations.length} tableaux registrados; {result.pivot_count} pivoteamentos.</p>
-      <p>Exportação PDF e visualizações geométricas permanecerão para a próxima fase.</p>
-    </section>}
-  </div>;
-}
+export { ReportBuilder as LiveReport } from './ReportBuilder';
