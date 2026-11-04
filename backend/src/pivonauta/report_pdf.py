@@ -250,8 +250,8 @@ def add_integer(story, st, result):
         add_line(story, st, f"Cenário: {result['mode']}", "small")
     certified = result.get("status") == "optimal"
     add_line(story, st, "Certificação: "
-             + ("Otimo inteiro certificado por exploracao e podas."
-                if certified else "Incumbente nao certificado como ótimo."), "note")
+             + ("Ótimo inteiro certificado por exploração e podas."
+                if certified else "Incumbente não certificado como ótimo."), "note")
     add_line(story, st, f"Valor inteiro/incumbente: {fmt(result.get('objective_value'))} | "
              f"Nós explorados: {result.get('explored_nodes', 0)} | "
              f"Gap informado: {fmt(result.get('optimality_gap'))}")
@@ -292,7 +292,7 @@ def add_geometry(story, st, geometry, primal, integer, alternatives, model):
         geometry, primal, integer, variable_names=names, multiple_certified=multiple_certified
     ))
     add_line(story, st, "Legenda: roxo = regiao e ótimo continuo; amarelo = curvas de nivel "
-             "e fronteira otima quando certificada; verde = solução inteira; ciano = restricoes; "
+             "e fronteira ótima quando certificada; verde = solução inteira; ciano = restrições; "
              "cinza = malha inteira.", "small")
     if not geometry.get("bounded"):
         add_line(story, st, "A regiao e ilimitada. O desenho mostra somente a parte recortada "
@@ -361,7 +361,7 @@ def decorate(canvas, document):
     canvas.drawString(39, 20, "PIVONAUTA | PESQUISA OPERACIONAL")
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(MUTED)
-    canvas.drawRightString(width - 40, 20, f"Pagina {document.page}")
+    canvas.drawRightString(width - 40, 20, f"Página {document.page}")
     canvas.restoreState()
 
 
@@ -376,7 +376,7 @@ def build_report_pdf(payload):
     story = []
     story.append(Paragraph("PIVONAUTA", st["label"]))
     story.append(Spacer(1, 12))
-    story.append(Paragraph("Relatório técnico de otimizacao", st["title"]))
+    story.append(Paragraph("Relatório técnico de otimização", st["title"]))
     story.append(p(f"Modelo: {payload['model'].name}", st["body"]))
     story.append(p(f"Gerado em UTC: {payload['generated_at']}", st["small"]))
     story.append(HRFlowable(width="100%", color=PURPLE, thickness=1.5, spaceAfter=16))
