@@ -94,7 +94,7 @@ test('dual envia modelo e solicitação de tableaux reais', async t => {
   const previous = globalThis.fetch;
   t.after(() => { globalThis.fetch = previous; });
   globalThis.fetch = async (url, request) => {
-    assert.match(url, /\\/api\\/v1\\/solves\\/dual$/);
+    assert.equal(url.endsWith('/api/v1/solves/dual'), true);
     const payload = JSON.parse(request.body);
     assert.equal(payload.model.objective[0], 3);
     assert.equal(payload.options.include_trace, true);
@@ -107,7 +107,7 @@ test('diagnóstico exige execução real do servidor', async t => {
   const previous = globalThis.fetch;
   t.after(() => { globalThis.fetch = previous; });
   globalThis.fetch = async (url, request) => {
-    assert.match(url, /\\/solves\\/alternatives$/);
+    assert.equal(url.endsWith('/solves/alternatives'), true);
     const payload = JSON.parse(request.body);
     assert.equal(payload.options.max_bases, 200);
     return { ok: true, json: async () => ({ status: 'multiple', certified: true, alternative: { x1: 1, x2: 3 } }) };
@@ -120,7 +120,7 @@ test('geometria envia restrições reais e recebe vértices', async t => {
   const previous = globalThis.fetch;
   t.after(() => { globalThis.fetch = previous; });
   globalThis.fetch = async (url, request) => {
-    assert.match(url, /\\/api\\/v1\\/geometry$/);
+    assert.equal(url.endsWith('/api/v1/geometry'), true);
     assert.equal(JSON.parse(request.body).model.constraints.length, 3);
     return { ok: true, json: async () => ({ status: 'feasible', bounded: true, vertices: [[0, 0], [2, 6]] }) };
   };
