@@ -66,3 +66,22 @@ jobs:
           path: validation-artifacts/pdf/
           if-no-files-found: ignore
           retention-days: 7
+
+  production_smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build and start production-like frontend and API
+        run: docker compose up -d --build --wait
+      - name: Exercise public HTTP endpoints behind Nginx
+        run: python scripts/smoke_production.py
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop application stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans
