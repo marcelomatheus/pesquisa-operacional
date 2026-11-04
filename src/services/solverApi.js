@@ -21,7 +21,16 @@ export function normalizeModel(model) {
 }
 
 export function modelFingerprint(model) {
-  return mathematicalFingerprint(normalizeModelInput(model, { preserveId: true }));
+  // Keep the signature valid during incomplete edits; strict validation is deferred
+  // to normalizeModel() when submitting a request to the API.
+  const variables = (model.variables || []).map((variable, index) =>
+    typeof variable === 'string'
+      ? { id: `x${index + 1}`, domain: model.domain === 'integer' ? 'integer' : 'continuous', lower_bound: 0, upper_bound: null }
+      : variable);
+  const constraints = (model.constraints || []).map(constraint => ({
+    ...constraint, coefficients: constraint.coefficients ?? constraint.values,
+  }));
+  return mathematicalFingerprint({ ...model, variables, constraints });
 }
 
 async function request(path, payload, { signal } = {}) {

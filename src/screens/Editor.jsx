@@ -123,7 +123,10 @@ export function Editor({ model, setModel, pushLog, setSelectedEntity }) {
         {tab === 'json' && <label className="pr4-file-import"><Upload size={16} />Importar arquivo .json<input type="file" accept=".json,application/json" onChange={loadFile} /></label>}
         {tab === 'algebra' && <p>Use uma equação por linha, com variáveis de x1 a x10, operadores &lt;=, &gt;= ou =. Domínios e limites individuais são preservados para variáveis existentes; novas variáveis começam contínuas e não negativas.</p>}
         {inputError && <p className="import-error" role="alert"><CircleAlert size={15} />{inputError}</p>}
-        {preview && <div className="pr4-preview" role="status"><strong>Pré-visualização validada</strong><p>{preview.name} · {preview.variables.length} variáveis · {preview.constraints.length} restrições · {preview.sense === 'min' ? 'Minimização' : 'Maximização'}</p><small>A aplicação substituirá a formulação atual somente após sua confirmação.</small></div>}
+        {preview && <div className="pr4-preview" role="status"><strong>Pré-visualização validada</strong><p>{preview.name} · {preview.variables.length} variáveis · {preview.constraints.length} restrições · {preview.sense === 'min' ? 'Minimização' : 'Maximização'}</p>
+            <p><strong>Alterações:</strong> {model.variables.length} → {preview.variables.length} variáveis; {model.constraints.length} → {preview.constraints.length} restrições; objetivo [{model.objective.join(', ')}] → [{preview.objective.join(', ')}].</p>
+            <p>Domínios inteiros: {preview.variables.filter(v => v.domain === 'integer').map(v => v.id).join(', ') || 'nenhum'}.</p>
+            <small>A aplicação substituirá a formulação atual somente após sua confirmação.</small></div>}
         <footer><button className="button button--secondary" onClick={() => showTab('visual')}>Cancelar</button><button className="button button--secondary" onClick={buildPreview}>Validar e pré-visualizar</button><button className="button button--primary" disabled={!preview} onClick={applyPreview}>Aplicar formulação</button></footer>
       </section> : <>
         <motion.article className="equation-node equation-node--objective" layout onClick={() => setSelectedEntity('Função objetivo')}>

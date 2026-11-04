@@ -152,3 +152,17 @@ test('modelo misto preserva variáveis contínuas no Branch and Bound', async t 
   const result = await solveInteger(model);
   assert.equal(result.explored_nodes, 3);
 });
+
+test('fingerprint tolera nome temporariamente vazio e limites transitórios inválidos', () => {
+  const canonical = {
+    schema_version: 1, id: 'draft', name: 'Teste', sense: 'max',
+    variables: [{ id: 'x1', domain: 'continuous', lower_bound: 0, upper_bound: 4 }],
+    objective: [1],
+    constraints: [{ id: 'r1', coefficients: [1], operator: 'le', rhs: 2 }],
+  };
+  const pristine = modelFingerprint(canonical);
+  assert.equal(modelFingerprint({ ...canonical, name: '' }), pristine);
+  assert.notEqual(modelFingerprint({
+    ...canonical, variables: [{ ...canonical.variables[0], lower_bound: 10 }],
+  }), pristine);
+});

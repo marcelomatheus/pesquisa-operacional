@@ -31,11 +31,12 @@ function AsyncState({ state, onRetry }) {
   </section>;
 }
 
-function useRemoteAnalysis(model, loader) {
+function useRemoteAnalysis(model, loader, enabled = true) {
   const fingerprint = modelFingerprint(model);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState({ phase: 'loading', data: null });
   useEffect(() => {
+    if (!enabled) { setState({ phase: 'idle', data: null }); return undefined; }
     const controller = new AbortController();
     setState({ phase: 'loading', data: null });
     loader(model, { signal: controller.signal })
@@ -46,7 +47,7 @@ function useRemoteAnalysis(model, loader) {
         }
       });
     return () => controller.abort();
-  }, [fingerprint, attempt, loader]);
+  }, [fingerprint, attempt, loader, enabled]);
   return [state, () => setAttempt(i => i + 1)];
 }
 
@@ -195,7 +196,7 @@ function RegionPlot({ geometry, layers }) {
 }
 
 export function GeometryAnalysis({ model }) {
-  const [state, retry] = useRemoteAnalysis(model, calculateGeometry);
+  const [state, retry] = useRemoteAnalysis(model, calculateGeometry, model.variables.length === 2);
   const [layers, setLayers] = useState({ constraints: true, region: true, vertices: true, optimum: true });
   const toggle = key => setLayers(old => ({ ...old, [key]: !old[key] }));
   const geometry = state.data;
