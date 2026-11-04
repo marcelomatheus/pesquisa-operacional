@@ -3,7 +3,7 @@ import {
   Activity, BarChart3, BookOpen, Braces, ChevronDown, ChevronRight,
   CircleHelp, Command, FileChartColumn, FolderKanban, Gauge, GitBranch,
   Home, Layers3, Menu, PanelRightClose, PanelRightOpen, Play, Plus,
-  Search, Settings2, Sigma, Sparkles, Table2, TerminalSquare, X,
+  Search, Settings2, Sigma, Sparkles, Table2, TerminalSquare, X, Save,
 } from 'lucide-react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
@@ -66,7 +66,7 @@ function CommandPalette({ open, onClose, onSelect }) {
   );
 }
 
-export function AppShell({ children, model, setModel, logs, selectedEntity, setSelectedEntity, onNewModel }) {
+export function AppShell({ children, model, setModel, logs, selectedEntity, setSelectedEntity, onNewModel, onSaveModel, dirty, storageWarning }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [consoleOpen, setConsoleOpen] = useState(false);
@@ -95,7 +95,7 @@ export function AppShell({ children, model, setModel, logs, selectedEntity, setS
   }, [location.pathname]);
 
   const toggleSection = (key) => setOpenSections((current) => ({ ...current, [key]: !current[key] }));
-  const modelFormula = `${model.sense === 'min' ? 'Min' : 'Max'} Z = ${model.objective[0]}x₁ + ${model.objective[1]}x₂`;
+  const modelFormula = `${model.sense === 'min' ? 'Min' : 'Max'} Z = ${model.objective.map((c, i) => `${c}${model.variables[i]?.id || `x${i + 1}`}`).join(' + ')}`;
   const selectCommand = (item) => { setPaletteOpen(false); if (item.action === 'new') onNewModel(); else navigate(item.to); };
 
   return (
@@ -119,7 +119,10 @@ export function AppShell({ children, model, setModel, logs, selectedEntity, setS
           <ChevronRight size={15} />
         </button>
 
-        <div className="context-panel__footer"><AppNavLink item={primaryNavigation[2]} /><div className="project-status"><span>Motor matemático próprio</span></div></div>
+        <div className="context-panel__footer"><AppNavLink item={primaryNavigation[2]} /><div className="project-status"><span>Motor matemático próprio</span></div>
+          <div className="pr4-storage-status">{dirty ? '● Alterações não salvas na biblioteca' : '✓ Modelo salvo'}</div>
+          {storageWarning && <div className="pr4-storage-warning" role="alert">{storageWarning}</div>}
+        </div>
       </aside>
 
       <header className="mobile-topbar"><button className="icon-button" onClick={() => setMobileMenu(true)} aria-label="Abrir navegação"><Menu size={19} /></button><Logo /><button className="icon-button" onClick={() => setInspectorOpen(true)} aria-label="Abrir inspetor"><PanelRightOpen size={19} /></button></header>
@@ -129,7 +132,8 @@ export function AppShell({ children, model, setModel, logs, selectedEntity, setS
       </main>
 
       <aside className={`inspector ${inspectorOpen ? 'is-open' : ''}`} aria-label="Inspetor do modelo">
-        <div className="inspector__head"><div><span>INSPECTOR</span><strong>{selectedEntity || 'Modelo matemático'}</strong></div><button className="icon-button inspector-close" onClick={() => setInspectorOpen(false)} aria-label="Fechar inspetor"><PanelRightClose size={17} /></button></div>
+        <div className="inspector__head"><div><span>INSPECTOR</span><strong>{selectedEntity || 'Modelo matemático'}</strong></div>
+          <button className="icon-button" title="Salvar modelo na biblioteca" aria-label="Salvar modelo" onClick={() => void onSaveModel().catch(error => window.alert(error.message))}><Save size={17} /></button><button className="icon-button inspector-close" onClick={() => setInspectorOpen(false)} aria-label="Fechar inspetor"><PanelRightClose size={17} /></button></div>
         <div className="inspector__body">
           <section className={`inspector-section ${openSections.properties ? 'is-open' : ''}`}>
             <button onClick={() => toggleSection('properties')} aria-expanded={openSections.properties}><span><Settings2 size={15} />Propriedades</span><ChevronDown size={15} /></button>
@@ -137,13 +141,13 @@ export function AppShell({ children, model, setModel, logs, selectedEntity, setS
               <label>Nome do modelo<input value={model.name} onChange={(event) => setModel((current) => ({ ...current, name: event.target.value }))} /></label>
               <span className="field-caption">Sentido da otimização</span>
               <div className="segmented-control"><button className={model.sense === 'min' ? 'is-active' : ''} onClick={() => setModel((current) => ({ ...current, sense: 'min' }))}>Minimizar</button><button className={model.sense === 'max' ? 'is-active' : ''} onClick={() => setModel((current) => ({ ...current, sense: 'max' }))}>Maximizar</button></div>
-              <div className="property-row"><span>Variáveis</span><strong>{model.variables.length}</strong></div><div className="property-row"><span>Restrições</span><strong>{model.constraints.length}</strong></div>
+              <div className="property-row"><span>Variáveis</span><strong>{model.variables.length}</strong></div><div className="property-row"><span>Restrições</span><strong>{model.constraints.length}</strong></div><div className="property-row"><span>Tipo</span><strong>{model.variables.some(v => v.domain === 'integer') ? 'Inteira / mista' : 'Contínua'}</strong></div>
             </div>}
           </section>
 
           <section className={`inspector-section ${openSections.formulation ? 'is-open' : ''}`}>
             <button onClick={() => toggleSection('formulation')} aria-expanded={openSections.formulation}><span><Sigma size={15} />Formulação</span><ChevronDown size={15} /></button>
-            {openSections.formulation && <div className="inspector-section__content"><div className="formula-chip">{modelFormula}</div>{model.constraints.map((constraint) => <button className="constraint-mini" key={constraint.id} onClick={() => setSelectedEntity(constraint.name)}><span>{constraint.name}</span><code>{constraint.values[0]}x₁ + {constraint.values[1]}x₂ {constraint.operator} {constraint.rhs}</code></button>)}</div>}
+            {openSections.formulation && <div className="inspector-section__content"><div className="formula-chip">{modelFormula}</div>{model.constraints.map((constraint) => <button className="constraint-mini" key={constraint.id} onClick={() => setSelectedEntity(constraint.name)}><span>{constraint.name}</span><code>{constraint.coefficients.map((c, i) => `${c}${model.variables[i].id}`).join(' + ')} {{ le: '≤', ge: '≥', eq: '=' }[constraint.operator]} {constraint.rhs}</code></button>)}</div>}
           </section>
 
           <section className={`inspector-section ${openSections.assistance ? 'is-open' : ''}`}>

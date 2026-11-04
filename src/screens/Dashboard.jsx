@@ -19,7 +19,7 @@ export function Dashboard({ model, result, integerTask, onNewModel }) {
       </div>
     </header>
     <section className="instrument-strip" aria-label="Indicadores do modelo">
-      <div><span>Função objetivo</span><code>{model.sense === 'min' ? 'Min' : 'Max'} Z = {model.objective.map((value, i) => `${value}x${i + 1}`).join(' + ')}</code></div>
+      <div><span>Função objetivo</span><code>{model.sense === 'min' ? 'Min' : 'Max'} Z = {model.objective.map((value, i) => `${value}${model.variables[i].id}`).join(' + ')}</code></div>
       <div><span>Solução contínua</span><strong>{displayNumber(result?.objective_value)}</strong><small>{result ? SOLVE_STATUSES[result.status] || result.status : 'Execute o modelo'}</small></div>
       <div><span>Solução inteira</span><strong>{displayNumber(integerResult?.objective_value)}</strong><small>{integerResult ? SOLVE_STATUSES[integerResult.status] || integerResult.status : 'Não calculada'}</small></div>
       <div><span>Tableaux</span><strong>{result?.iterations?.length ?? '—'}</strong><small>{result ? `${result.pivot_count} pivôs` : 'Aguardando solução'}</small></div>

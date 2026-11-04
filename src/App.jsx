@@ -10,18 +10,19 @@ import { Library } from './screens/Library';
 import { Review } from './screens/Review';
 import { LiveInteger, LiveReport, LiveSimplex, LiveSummary } from './screens/LiveResults';
 import { modelFingerprint, solveInteger, solveModel } from './services/solverApi';
+import { createBlankModel, newId, normalizeModelInput, validateModelLocal } from './services/model';
+import { getSavedModel, loadDraft, rememberRun, saveModel, writeDraft } from './services/storage';
 import { AlternativesAnalysis, DualAnalysis, GeometryAnalysis } from './screens/MathAnalysis';
-
-function cloneModel(model) {
-  return JSON.parse(JSON.stringify(model));
-}
 
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [model, setModel] = useState(() => cloneModel(examples[0]));
+  const [model, setModel] = useState(() => normalizeModelInput(examples[0]));
   const [logs, setLogs] = useState([]);
   const [selectedEntity, setSelectedEntity] = useState('Modelo matemático');
+  const [hydrated, setHydrated] = useState(false);
+  const [savedSignature, setSavedSignature] = useState(null);
+  const [storageWarning, setStorageWarning] = useState('');
   const [solving, setSolving] = useState(false);
   const [solveError, setSolveError] = useState('');
   const [run, setRun] = useState(null);
@@ -37,24 +38,68 @@ export default function App() {
     setLogs((current) => [entry, ...current].slice(0, 8));
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const restore = async () => {
+      try {
+        const stored = await loadDraft();
+        if (!cancelled && stored) {
+          let canonical;
+          try {
+            canonical = normalizeModelInput(stored, { preserveId: true });
+          } catch (error) {
+            // A draft may legitimately be mid-edit (empty name or conflicting bounds).
+            // Restore the editable shape instead of discarding the user's work.
+            if (stored.schema_version !== 1 || !Array.isArray(stored.variables)
+                || !Array.isArray(stored.objective) || !Array.isArray(stored.constraints)) throw error;
+            canonical = stored;
+            setStorageWarning('Rascunho recuperado com campos incompletos. Corrija-os antes de resolver.');
+          }
+          setModel(canonical);
+          const saved = await getSavedModel(canonical.id);
+          if (!cancelled) setSavedSignature(saved ? JSON.stringify(normalizeModelInput(saved, { preserveId: true })) : null);
+        }
+      } catch (error) {
+        if (!cancelled) setStorageWarning(error.message || 'Armazenamento local indisponível.');
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    };
+    void restore();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return undefined;
+    const timer = window.setTimeout(() => {
+      writeDraft(model).catch(error => setStorageWarning(error.message || 'Falha ao salvar rascunho.'));
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [model, hydrated]);
+
+  const openModel = useCallback((candidate, { saved = false } = {}) => {
+    const canonical = normalizeModelInput(candidate, { preserveId: true });
+    setModel(canonical);
+    setSavedSignature(saved ? JSON.stringify(canonical) : null);
+    setRun(null);
+    setIntegerTask(null);
+  }, []);
+
+  const saveCurrentModel = useCallback(async () => {
+    const validation = validateModelLocal(model);
+    if (!validation.valid) throw new Error(validation.errors[0]);
+    await saveModel(model);
+    setSavedSignature(JSON.stringify(model));
+    setStorageWarning('');
+    pushLog({ tone: 'success', text: 'Modelo salvo na biblioteca local', time: new Date().toLocaleTimeString('pt-BR') });
+  }, [model, pushLog]);
+
   const createNewModel = useCallback(() => {
-    const starter = cloneModel(examples[0]);
-    setModel({
-      ...starter,
-      id: `draft-${Date.now()}`,
-      name: 'Modelo sem título',
-      sense: 'max',
-      objective: [1, 1],
-      constraints: [
-        { id: 'draft-r1', name: 'Limite combinado', values: [1, 1], operator: '≤', rhs: 10 },
-        { id: 'draft-r2', name: 'Capacidade de x₁', values: [1, 0], operator: '≤', rhs: 8 },
-      ],
-      domain: 'continuous',
-    });
+    openModel(createBlankModel());
     setSelectedEntity('Modelo matemático');
-    pushLog({ tone: 'violet', text: 'Novo modelo criado com estrutura inicial', time: 'agora' });
+    pushLog({ tone: 'violet', text: 'Novo modelo criado com estrutura inicial', time: new Date().toLocaleTimeString('pt-BR') });
     navigate('/editor');
-  }, [navigate, pushLog]);
+  }, [navigate, pushLog, openModel]);
 
   const solve = useCallback(async () => {
     if (solving) return;
@@ -66,6 +111,10 @@ export default function App() {
       const calculated = await solveModel(model);
       if (latestFingerprintRef.current !== inputFingerprint) return;
       setRun({ fingerprint: inputFingerprint, data: calculated });
+      void rememberRun({ id: newId('run'), model_id: model.id,
+        fingerprint: inputFingerprint, model_snapshot: model,
+        method: 'simplex', status: calculated.status, result: calculated })
+        .catch(error => setStorageWarning(error.message || 'Não foi possível registrar execução.'));
       setIntegerTask(null);
       pushLog({ tone: calculated.status === 'optimal' ? 'success' : 'amber',
         text: `Simplex: ${calculated.status} · ${calculated.pivot_count} pivoteamentos`, time: 'agora' });
@@ -90,6 +139,10 @@ export default function App() {
       const calculated = await solveInteger(model);
       if (latestFingerprintRef.current !== inputFingerprint) return;
       setIntegerTask({ fingerprint: inputFingerprint, state: 'success', data: calculated });
+      void rememberRun({ id: newId('run'), model_id: model.id,
+        fingerprint: inputFingerprint, model_snapshot: model,
+        method: 'branch_bound', status: calculated.status, result: calculated })
+        .catch(error => setStorageWarning(error.message || 'Não foi possível registrar execução.'));
       pushLog({ tone: calculated.status === 'optimal' ? 'success' : 'amber',
         text: `Branch and Bound: ${calculated.status} · ${calculated.explored_nodes} nós`, time: 'agora' });
     } catch (error) {
@@ -163,13 +216,12 @@ export default function App() {
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute: async (input) => {
         if (!input || !Array.isArray(input.objective) || !Array.isArray(input.constraints)) throw new Error('Formulação inválida.');
-        setModel((current) => ({
-          ...current,
-          id: 'custom',
-          name: input.name,
-          sense: input.sense,
-          objective: input.objective,
-          constraints: input.constraints.map((constraint, index) => ({ ...constraint, id: `custom-${index + 1}` })),
+        openModel(normalizeModelInput({
+          name: input.name, sense: input.sense, objective: input.objective,
+          constraints: input.constraints.map((constraint, index) => ({
+            id: `r${index + 1}`, name: constraint.name,
+            coefficients: constraint.values, operator: constraint.operator, rhs: constraint.rhs,
+          })),
         }));
         pushLog({ tone: 'violet', text: `Modelo “${input.name}” preparado via WebMCP`, time: 'agora' });
         navigate('/editor');
@@ -191,9 +243,12 @@ export default function App() {
     });
 
     return () => lifecycle.abort();
-  }, [model, result, currentIntegerTask, navigate, pushLog, solve]);
+  }, [model, result, currentIntegerTask, navigate, pushLog, solve, openModel]);
 
-  const shellProps = useMemo(() => ({ model, setModel, logs, selectedEntity, setSelectedEntity, onNewModel: createNewModel }), [createNewModel, model, logs, selectedEntity]);
+  const dirty = savedSignature !== JSON.stringify(model);
+  const shellProps = useMemo(() => ({ model, setModel, logs, selectedEntity, setSelectedEntity,
+    onNewModel: createNewModel, dirty, storageWarning, onSaveModel: saveCurrentModel }),
+    [createNewModel, model, logs, selectedEntity, dirty, storageWarning, saveCurrentModel]);
 
   if (location.pathname === '/') {
     return <Landing onNewModel={createNewModel} />;
@@ -203,7 +258,7 @@ export default function App() {
     <AppShell {...shellProps}>
       <Routes location={location} key={location.pathname}>
         <Route path="/workspace" element={<Dashboard model={model} result={result} integerTask={currentIntegerTask} onNewModel={createNewModel} />} />
-        <Route path="/library" element={<Library model={model} setModel={setModel} pushLog={pushLog} />} />
+        <Route path="/library" element={<Library model={model} onOpenModel={openModel} onSaveModel={saveCurrentModel} pushLog={pushLog} />} />
         <Route path="/editor" element={<Editor model={model} setModel={setModel} pushLog={pushLog} setSelectedEntity={setSelectedEntity} />} />
         <Route path="/review" element={<Review model={model} solve={solve} solving={solving} solveError={solveError} />} />
         <Route path="/results/summary" element={<LiveSummary model={model} result={result} integerTask={currentIntegerTask} />} />

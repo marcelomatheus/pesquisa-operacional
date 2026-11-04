@@ -529,3 +529,17 @@ A implementação foi **explicitamente autorizada em 04/11/2026**. Comece por um
   aparecer no frontend como se fossem resultados conclusivos.
 - Próximos incrementos: relatório PDF completo e testes E2E; auditoria de
   limites computacionais e robustez numérica antes da entrega final.
+
+
+## Registro de evolução — PR #4: modelagem e confiabilidade (04/11/2026)
+
+- Modelo canônico versionado de frontend (`schema_version: 1`) com `variables[]`, `objective[]` e `constraints[]`. Domínio, limites inferiores/superiores e variáveis livres são preservados no payload FastAPI.
+- Editor visual n-dimensional (1–10 variáveis; 0–30 restrições), campos numéricos que bloqueiam revisão quando vazios/inválidos e validação estrutural pela API.
+- Parser algébrico de expressões lineares próprias, sem `eval()`, com pré-visualização antes da aplicação.
+- JSON versionado, importação de arquivo e suporte a modelos canônicos, formato API e exemplos legados; transação não altera o modelo até a confirmação.
+- IndexedDB para rascunhos, biblioteca de modelos locais (salvar/duplicar/excluir) e histórico de execuções para futura interface de inspeção.
+- Início em um comando no Windows/macOS/Linux com `scripts/dev.py`, healthcheck FastAPI e Vite. Sem solver matemático externo.
+- Gráfico bidimensional explicitamente indisponível para modelos com número de variáveis diferente de dois.
+- Fora do PR #4: Inspector tipado e console de eventos do solver (PR #5), curvas de nível e árvore visual BnB (PR #6), PDF e E2E/browser (PRs #7–8).
+
+A feature branch não deve ser mesclada antes da aprovação dos testes de frontend/backend e da revisão do fluxo principal com um modelo misto de três variáveis.

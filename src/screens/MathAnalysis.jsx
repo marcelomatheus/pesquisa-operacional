@@ -31,11 +31,12 @@ function AsyncState({ state, onRetry }) {
   </section>;
 }
 
-function useRemoteAnalysis(model, loader) {
+function useRemoteAnalysis(model, loader, enabled = true) {
   const fingerprint = modelFingerprint(model);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState({ phase: 'loading', data: null });
   useEffect(() => {
+    if (!enabled) { setState({ phase: 'idle', data: null }); return undefined; }
     const controller = new AbortController();
     setState({ phase: 'loading', data: null });
     loader(model, { signal: controller.signal })
@@ -46,7 +47,7 @@ function useRemoteAnalysis(model, loader) {
         }
       });
     return () => controller.abort();
-  }, [fingerprint, attempt, loader]);
+  }, [fingerprint, attempt, loader, enabled]);
   return [state, () => setAttempt(i => i + 1)];
 }
 
@@ -106,7 +107,7 @@ export function DualAnalysis({ model }) {
         <article className="panel dual-model dual-model--primal">
           <div className="dual-model__head"><span>PRIMAL</span><strong>{model.sense === 'min' ? 'Minimização' : 'Maximização'}</strong></div>
           <div className="dual-equation"><small>OBJETIVO</small><LinearEquation coefficients={model.objective} rhs="Z" operator="eq" variablePrefix="x" /></div>
-          {model.constraints.map((constraint, i) => <div key={constraint.id || i} style={{ padding: '10px 16px' }}><small>R{i + 1} </small><LinearEquation coefficients={constraint.values} operator={{ '≤': 'le', '≥': 'ge', '=': 'eq' }[constraint.operator]} rhs={constraint.rhs} variablePrefix="x" /></div>)}
+          {model.constraints.map((constraint, i) => <div key={constraint.id || i} style={{ padding: '10px 16px' }}><small>R{i + 1} </small><LinearEquation coefficients={constraint.coefficients} operator={{ '≤': 'le', '≥': 'ge', '=': 'eq' }[constraint.operator]} rhs={constraint.rhs} variablePrefix="x" /></div>)}
         </article>
         <div className="duality-axis"><span>DUAL</span><Sigma size={23} /><small>Aᵀ</small></div>
         <article className="panel dual-model dual-model--dual">
@@ -195,10 +196,18 @@ function RegionPlot({ geometry, layers }) {
 }
 
 export function GeometryAnalysis({ model }) {
-  const [state, retry] = useRemoteAnalysis(model, calculateGeometry);
+  const [state, retry] = useRemoteAnalysis(model, calculateGeometry, model.variables.length === 2);
   const [layers, setLayers] = useState({ constraints: true, region: true, vertices: true, optimum: true });
   const toggle = key => setLayers(old => ({ ...old, [key]: !old[key] }));
   const geometry = state.data;
+  if (model.variables.length !== 2) return <div className="page result-page graph-page">
+    <AnalysisHeader title="Região viável" eyebrow="Geometria 2D" icon={BarChart3}
+      description="A representação gráfica é disponível somente para modelos com duas variáveis de decisão." />
+    <section className="panel" style={{ padding: 28 }}><h2>Modelo com {model.variables.length} variáveis</h2>
+      <p>O Simplex e o Branch and Bound podem resolver este modelo, mas não existe gráfico bidimensional fiel para esta quantidade de variáveis.</p>
+      <button className="button button--primary" onClick={() => window.location.hash = '#/editor'}>Editar variáveis</button>
+    </section>
+  </div>;
   return <div className="page result-page graph-page">
     <AnalysisHeader title="Região viável" eyebrow="Geometria · cálculo real" icon={BarChart3}
       description="Interseções, fronteiras e visualização recortada das restrições do modelo." />
