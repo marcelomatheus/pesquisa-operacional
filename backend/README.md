@@ -69,3 +69,13 @@ pytest -q
 
 Há testes unitários para radioterapia, Wyndor, variáveis livres e com limites,
 regiões de dimensão 0/1/2, regiões ilimitadas, modelos inviáveis e bases degeneradas.
+
+
+## Inspeção pedagógica da forma padrão e dos pivôs
+
+- `POST /api/v1/models/standard-form` recebe `{ "model": ... }` e devolve colunas normalizadas, linhas, bases, origem das restrições, variáveis auxiliares e reconstrução do modelo original.
+- Os snapshots de `POST /api/v1/solves` preservam o contrato existente e passam a incluir `row_operations[]` e `reduced_costs[]` quando `include_trace=true`.
+- Cada operação contém o tipo (`scale` ou `eliminate`), a linha-alvo, a linha-fonte, o fator multiplicativo e os vetores antes/depois. Essas informações são projeções da mesma matriz usada pelo Simplex, não cálculos independentes.
+- Com `include_trace=false`, não são montadas matrizes pedagógicas extras. O motor permanece em Python puro e sem dependências de bibliotecas de otimização.
+
+Execute `pytest -q` em `backend/` para validar a consistência da trilha e a forma padrão.

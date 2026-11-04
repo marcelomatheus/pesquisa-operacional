@@ -8,6 +8,7 @@ import {
   analyzeAlternatives, calculateGeometry, displayNumber, modelFingerprint,
   solveDual, SOLVE_STATUSES,
 } from '../services/solverApi';
+import { TableauViewer } from '../components/TableauViewer';
 
 function AnalysisHeader({ title, eyebrow, description, icon: Icon }) {
   const navigate = useNavigate();
@@ -51,34 +52,6 @@ function useRemoteAnalysis(model, loader, enabled = true) {
   return [state, () => setAttempt(i => i + 1)];
 }
 
-function NumericTableau({ result }) {
-  const [step, setStep] = useState(0);
-  const iterations = result?.iterations || [];
-  useEffect(() => setStep(0), [result]);
-  if (!iterations.length) return <p>Não há tableaux registrados para este resultado.</p>;
-  const current = iterations[Math.min(step, iterations.length - 1)];
-  return <article className="panel tableau-card">
-    <div className="panel__header">
-      <div><span className="panel-kicker">TABLEAU DUAL · {current.phase}</span><h2>{current.event === 'pivot' ? 'Operação de pivô' : current.event === 'optimal' ? 'Tableau ótimo' : current.event}</h2></div>
-      <div className="playback">
-        <button className="icon-button" disabled={step === 0} onClick={() => setStep(i => Math.max(0, i - 1))} aria-label="Tableau anterior"><ChevronLeft size={18} /></button>
-        <strong>{step + 1}/{iterations.length}</strong>
-        <button className="icon-button" disabled={step === iterations.length - 1} onClick={() => setStep(i => Math.min(iterations.length - 1, i + 1))} aria-label="Próximo tableau"><ChevronRight size={18} /></button>
-      </div>
-    </div>
-    <div className="tableau-scroll"><table className="tableau">
-      <thead><tr><th>Base</th>{current.columns.map((c, i) => <th key={i} className={current.pivot?.column === i ? 'is-pivot-column' : ''}>{c}</th>)}</tr></thead>
-      <tbody>{current.matrix.map((row, i) => <tr key={i} className={current.pivot?.row === i ? 'is-pivot-row' : ''}>
-        <td>{i === 0 ? 'Z' : current.basis[i - 1]}</td>
-        {row.map((value, j) => <td key={j} className={current.pivot?.row === i && current.pivot?.column === j ? 'is-pivot' : ''}>{displayNumber(value, 5)}</td>)}
-      </tr>)}</tbody>
-    </table></div>
-    <div className="tableau-note"><Table2 size={17} />
-      <p>{current.pivot?.entering ? `Entra ${current.pivot.entering}; sai ${current.pivot.leaving || '—'}.` : 'Dados tabulares da execução real do algoritmo.'}</p>
-    </div>
-  </article>;
-}
-
 function VariableValues({ values }) {
   if (!values) return <span>—</span>;
   return <code>{Object.entries(values).map(([name, value]) => `${name} = ${displayNumber(value)}`).join(' · ')}</code>;
@@ -90,7 +63,7 @@ function LinearEquation({ coefficients, rhs, operator, variablePrefix = 'y' }) {
   return <code>{rhs === 'Z' || rhs === 'W' ? `${rhs} = ${expression}` : `${expression} ${sign} ${displayNumber(rhs)}`}</code>;
 }
 
-export function DualAnalysis({ model }) {
+export function DualAnalysis({ model, setSelectedEntity }) {
   const [state, retry] = useRemoteAnalysis(model, solveDual);
   const data = state.data;
   return <div className="page result-page dual-page">
@@ -122,7 +95,7 @@ export function DualAnalysis({ model }) {
         {data.objective_offset !== 0 && <p>Constante do deslocamento das variáveis do primal: {displayNumber(data.objective_offset)}</p>}
         <p>{data.message}</p>
       </section>
-      <NumericTableau result={data.dual} />
+      <TableauViewer result={data.dual} source="dual" onInspect={setSelectedEntity} compact />
     </>}
   </div>;
 }

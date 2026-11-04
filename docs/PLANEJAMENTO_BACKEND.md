@@ -543,3 +543,10 @@ A implementação foi **explicitamente autorizada em 04/11/2026**. Comece por um
 - Fora do PR #4: Inspector tipado e console de eventos do solver (PR #5), curvas de nível e árvore visual BnB (PR #6), PDF e E2E/browser (PRs #7–8).
 
 A feature branch não deve ser mesclada antes da aprovação dos testes de frontend/backend e da revisão do fluxo principal com um modelo misto de três variáveis.
+
+
+## Registro de evolução — PR #5 (04/11/2026)
+
+A integração pedagógica passa a ter Inspector contextual para variáveis, restrições, células de tableau e nós do Branch and Bound; console de eventos estruturados construídos a partir de resultados reais; uma única apresentação tabular reutilizada no primal e no dual; e endpoint de forma padrão que utiliza a função `standardize` do motor. Foram adicionados dados de operações elementares e custos reduzidos aos snapshots sem romper o contrato antigo.
+
+Os eventos do console não são transmitidos em tempo real: são derivados da resposta HTTP e reconstruídos do histórico local quando disponível. A arquitetura e as limitações estão descritas em `docs/REVISAO_ARQUITETURA_PR5.md`. A fase seguinte continua responsável por curvas de nível e árvore gráfica; o relatório PDF e os testes E2E ficam nas etapas seguintes.

@@ -11,7 +11,8 @@ import { Review } from './screens/Review';
 import { LiveInteger, LiveReport, LiveSimplex, LiveSummary } from './screens/LiveResults';
 import { modelFingerprint, solveInteger, solveModel } from './services/solverApi';
 import { createBlankModel, newId, normalizeModelInput, validateModelLocal } from './services/model';
-import { getSavedModel, loadDraft, rememberRun, saveModel, writeDraft } from './services/storage';
+import { getSavedModel, listRuns, loadDraft, rememberRun, saveModel, writeDraft } from './services/storage';
+import { fromBranchBoundResult, fromLegacyLog, fromSimplexResult, mergeConsoleEvents } from './services/solverEvents';
 import { AlternativesAnalysis, DualAnalysis, GeometryAnalysis } from './screens/MathAnalysis';
 
 export default function App() {
@@ -19,7 +20,7 @@ export default function App() {
   const location = useLocation();
   const [model, setModel] = useState(() => normalizeModelInput(examples[0]));
   const [logs, setLogs] = useState([]);
-  const [selectedEntity, setSelectedEntity] = useState('Modelo matemático');
+  const [selectedEntity, setSelectedEntity] = useState({ type: 'model' });
   const [hydrated, setHydrated] = useState(false);
   const [savedSignature, setSavedSignature] = useState(null);
   const [storageWarning, setStorageWarning] = useState('');
@@ -35,7 +36,7 @@ export default function App() {
   const currentIntegerTask = integerTask?.fingerprint === fingerprint ? integerTask : null;
 
   const pushLog = useCallback((entry) => {
-    setLogs((current) => [entry, ...current].slice(0, 8));
+    setLogs(current => mergeConsoleEvents(current, [fromLegacyLog(entry)]));
   }, []);
 
   useEffect(() => {
@@ -58,6 +59,16 @@ export default function App() {
           setModel(canonical);
           const saved = await getSavedModel(canonical.id);
           if (!cancelled) setSavedSignature(saved ? JSON.stringify(normalizeModelInput(saved, { preserveId: true })) : null);
+        }
+        const pastRuns = await listRuns();
+        if (!cancelled && pastRuns.length) {
+          const previousEvents = pastRuns.slice(0, 12).flatMap(entry => {
+            const info = { runId: entry.id, modelName: entry.model_snapshot?.name || 'Modelo', recordedAt: entry.recorded_at };
+            return entry.method === 'branch_bound'
+              ? fromBranchBoundResult(entry.result, info)
+              : fromSimplexResult(entry.result, info);
+          });
+          setLogs(current => mergeConsoleEvents(current, previousEvents));
         }
       } catch (error) {
         if (!cancelled) setStorageWarning(error.message || 'Armazenamento local indisponível.');
@@ -96,7 +107,7 @@ export default function App() {
 
   const createNewModel = useCallback(() => {
     openModel(createBlankModel());
-    setSelectedEntity('Modelo matemático');
+    setSelectedEntity({ type: 'model' });
     pushLog({ tone: 'violet', text: 'Novo modelo criado com estrutura inicial', time: new Date().toLocaleTimeString('pt-BR') });
     navigate('/editor');
   }, [navigate, pushLog, openModel]);
@@ -110,8 +121,12 @@ export default function App() {
     try {
       const calculated = await solveModel(model);
       if (latestFingerprintRef.current !== inputFingerprint) return;
+      const executionId = newId('run');
+      const recordedAt = new Date().toISOString();
       setRun({ fingerprint: inputFingerprint, data: calculated });
-      void rememberRun({ id: newId('run'), model_id: model.id,
+      setLogs(current => mergeConsoleEvents(current,
+        fromSimplexResult(calculated, { runId: executionId, modelName: model.name, recordedAt })));
+      void rememberRun({ id: executionId, model_id: model.id,
         fingerprint: inputFingerprint, model_snapshot: model,
         method: 'simplex', status: calculated.status, result: calculated })
         .catch(error => setStorageWarning(error.message || 'Não foi possível registrar execução.'));
@@ -138,8 +153,12 @@ export default function App() {
     try {
       const calculated = await solveInteger(model);
       if (latestFingerprintRef.current !== inputFingerprint) return;
+      const executionId = newId('run');
+      const recordedAt = new Date().toISOString();
       setIntegerTask({ fingerprint: inputFingerprint, state: 'success', data: calculated });
-      void rememberRun({ id: newId('run'), model_id: model.id,
+      setLogs(current => mergeConsoleEvents(current,
+        fromBranchBoundResult(calculated, { runId: executionId, modelName: model.name, recordedAt })));
+      void rememberRun({ id: executionId, model_id: model.id,
         fingerprint: inputFingerprint, model_snapshot: model,
         method: 'branch_bound', status: calculated.status, result: calculated })
         .catch(error => setStorageWarning(error.message || 'Não foi possível registrar execução.'));
@@ -246,9 +265,11 @@ export default function App() {
   }, [model, result, currentIntegerTask, navigate, pushLog, solve, openModel]);
 
   const dirty = savedSignature !== JSON.stringify(model);
-  const shellProps = useMemo(() => ({ model, setModel, logs, selectedEntity, setSelectedEntity,
-    onNewModel: createNewModel, dirty, storageWarning, onSaveModel: saveCurrentModel }),
-    [createNewModel, model, logs, selectedEntity, dirty, storageWarning, saveCurrentModel]);
+  const shellProps = useMemo(() => ({
+    model, setModel, logs, selectedEntity, setSelectedEntity,
+    onNewModel: createNewModel, dirty, storageWarning, onSaveModel: saveCurrentModel,
+    result, integerTask: currentIntegerTask,
+  }), [createNewModel, model, logs, selectedEntity, dirty, storageWarning, saveCurrentModel, result, currentIntegerTask]);
 
   if (location.pathname === '/') {
     return <Landing onNewModel={createNewModel} />;
@@ -262,10 +283,10 @@ export default function App() {
         <Route path="/editor" element={<Editor model={model} setModel={setModel} pushLog={pushLog} setSelectedEntity={setSelectedEntity} />} />
         <Route path="/review" element={<Review model={model} solve={solve} solving={solving} solveError={solveError} />} />
         <Route path="/results/summary" element={<LiveSummary model={model} result={result} integerTask={currentIntegerTask} />} />
-        <Route path="/results/simplex" element={<LiveSimplex result={result} />} />
+        <Route path="/results/simplex" element={<LiveSimplex result={result} setSelectedEntity={setSelectedEntity} />} />
         <Route path="/results/graph" element={<GeometryAnalysis model={model} />} />
-        <Route path="/results/integer" element={<LiveInteger result={result} task={currentIntegerTask} onStart={calculateInteger} />} />
-        <Route path="/results/dual" element={<DualAnalysis model={model} />} />
+        <Route path="/results/integer" element={<LiveInteger result={result} task={currentIntegerTask} onStart={calculateInteger} setSelectedEntity={setSelectedEntity} />} />
+        <Route path="/results/dual" element={<DualAnalysis model={model} setSelectedEntity={setSelectedEntity} />} />
         <Route path="/results/analysis" element={<AlternativesAnalysis model={model} />} />
         <Route path="/results/report" element={<LiveReport model={model} result={result} integerTask={currentIntegerTask} />} />
         <Route path="/help" element={<Help />} />

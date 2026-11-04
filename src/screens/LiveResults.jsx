@@ -6,6 +6,7 @@ import {
   Pause, Play, RotateCcw, Sigma, Table2, Target,
 } from 'lucide-react';
 import { displayNumber, SOLVE_STATUSES } from '../services/solverApi';
+import { TableauViewer } from '../components/TableauViewer';
 
 function PageHeading({ title, label, description, action }) {
   const navigate = useNavigate();
@@ -72,60 +73,15 @@ function eventLabel(event) {
   return { pivot: 'Pivoteamento', optimal: 'Critério de otimalidade', unbounded: 'Problema ilimitado', time_limit: 'Tempo limite', iteration_limit: 'Limite de iterações', remove_redundant_row: 'Restrição redundante removida' }[event] || event;
 }
 
-export function LiveSimplex({ result }) {
-  const [step, setStep] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const iterations = result?.iterations || [];
-  useEffect(() => { setStep(0); setPlaying(false); }, [result]);
-  useEffect(() => {
-    if (!playing || iterations.length < 2) return undefined;
-    const timer = setInterval(() => setStep(current => {
-      if (current >= iterations.length - 1) { setPlaying(false); return current; }
-      return current + 1;
-    }), 1400);
-    return () => clearInterval(timer);
-  }, [playing, iterations.length]);
-  const current = iterations[Math.min(step, iterations.length - 1)];
-  const pivot = current?.pivot;
-  const jump = n => setStep(Math.max(0, Math.min(n, iterations.length - 1)));
+export function LiveSimplex({ result, setSelectedEntity }) {
   return <div className="page result-page simplex-page">
-    <PageHeading title="Simplex tabular" label="Histórico auditável" description="Tableaux produzidos pelo nosso algoritmo Python de duas fases." action={
-      <button className="button button--secondary" onClick={() => { setStep(0); setPlaying(false); }}><RotateCcw size={16} />Reiniciar</button>
-    } />
-    {!result ? <NeedSolve /> : !current ? <Note title="Sem tableaux" description={result.message} /> : <>
-      <section className="simplex-controls panel">
-        <div className="playback">
-          <button className="icon-button" disabled={step === 0} onClick={() => jump(step - 1)}><ChevronLeft size={19} /></button>
-          <button className="play-button" disabled={iterations.length < 2} onClick={() => { if (step >= iterations.length - 1) jump(0); setPlaying(v => !v); }}>{playing ? <Pause size={18} /> : <Play size={18} />}</button>
-          <button className="icon-button" disabled={step >= iterations.length - 1} onClick={() => jump(step + 1)}><ChevronRight size={19} /></button>
-        </div>
-        <div className="iteration-track" style={{ overflowX: 'auto' }}>
-          {iterations.map((item, index) => <button key={index} className={index === step ? 'is-active' : ''} onClick={() => { setPlaying(false); jump(index); }}><i>{index + 1}</i><span>{phaseLabel(item.phase)} #{item.iteration}</span></button>)}
-        </div>
-        <div className="iteration-counter"><small>ETAPA</small><strong>{step + 1}/{iterations.length}</strong></div>
-      </section>
-      <section className="simplex-layout">
-        <article className="panel tableau-card">
-          <div className="panel__header"><div><span className="panel-kicker">{phaseLabel(current.phase)}</span><h2>{eventLabel(current.event)}</h2></div><span className="status-pill tone-violet">Tableau {step + 1}</span></div>
-          <div className="tableau-scroll">
-            <table className="tableau"><thead><tr><th>Base</th>{current.columns.map((col, colIndex) => <th key={colIndex} className={pivot?.column === colIndex ? 'is-pivot-column' : ''}>{col}</th>)}</tr></thead>
-              <tbody>{current.matrix.map((row, rowIndex) => <tr key={rowIndex} className={pivot?.row === rowIndex ? 'is-pivot-row' : ''}><td>{rowIndex === 0 ? 'Z' : current.basis[rowIndex - 1]}</td>{row.map((value, colIndex) => <td key={colIndex} className={pivot?.row === rowIndex && pivot.column === colIndex ? 'is-pivot' : ''}>{displayNumber(value, 5)}</td>)}</tr>)}</tbody>
-            </table>
-          </div>
-          <div className="tableau-note"><Activity size={17} /><p>{pivot?.entering ? `Entra ${pivot.entering}; sai ${pivot.leaving || '—'}; pivô = ${displayNumber(pivot.value)}.` : eventLabel(current.event)}. Matriz obtida da execução real.</p></div>
-        </article>
-        <aside className="simplex-side">
-          <article className="panel pivot-card"><span className="panel-kicker">DECISÃO DE PIVÔ</span><div className="pivot-flow"><div><small>ENTRA</small><strong>{pivot?.entering || '—'}</strong></div><div><small>SAI</small><strong>{pivot?.leaving || '—'}</strong></div></div>
-            {pivot?.ratio_test?.length ? <p>Razões: {pivot.ratio_test.map(r => `L${r.row}: ${displayNumber(r.value)}`).join(' · ')}</p> : <p>Sem troca de base nesta etapa.</p>}
-          </article>
-          <article className="panel mini-proof"><span className="panel-kicker">RESULTADO</span><h3>{SOLVE_STATUSES[result.status] || result.status}</h3><p>{result.message}</p><small>{result.pivot_count} operações de pivoteamento</small></article>
-        </aside>
-      </section>
-    </>}
+    <PageHeading title="Simplex tabular" label="Prova algébrica · Python puro"
+      description="Cada tableau, custo reduzido, teste da razão e operação de linha foi calculado pelo backend." />
+    {!result ? <NeedSolve /> : <TableauViewer result={result} source="primal" onInspect={setSelectedEntity} />}
   </div>;
 }
 
-export function LiveInteger({ result, task, onStart }) {
+export function LiveInteger({ result, task, onStart, setSelectedEntity }) {
   const [tab, setTab] = useState('tree');
   useEffect(() => {
     if (result?.status === 'optimal' && !task && onStart) onStart();
@@ -152,10 +108,10 @@ export function LiveInteger({ result, task, onStart }) {
         {tab === 'tree' ? <section className="panel" style={{ padding: 24 }}>
           <div className="panel__header"><h2>Árvore de ramificações</h2><span>{data.nodes.length} nós registrados</span></div>
           <div style={{ maxHeight: 560, overflow: 'auto' }}>
-            {data.nodes.map(node => <div key={node.id} style={{ borderBottom: '1px solid var(--border-color, #8884)', padding: '12px 0', paddingLeft: Math.min(node.depth * 22, 160) }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}><strong>{node.id} · {node.branch_constraint || 'Relaxação inicial'}</strong><span>{node.status}</span></div>
+            {data.nodes.map(node => <button type="button" key={node.id} className="pr5-branch-node" onClick={() => setSelectedEntity?.({ type: 'branch_node', id: node.id })} style={{ borderBottom: '1px solid var(--border-color, #8884)', padding: '12px 0', paddingLeft: Math.min(node.depth * 22, 160) }}>
+              <span style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}><strong>{node.id} · {node.branch_constraint || 'Relaxação inicial'}</strong><span>{node.status}</span></span>
               <small>Relaxação: {node.relaxation_status} · Z = {displayNumber(node.relaxation_objective)} · {node.pivot_count} pivôs</small>
-            </div>)}
+            </button>)}
           </div>
         </section> : <section className="panel" style={{ padding: 24 }}>
           <div className="panel__header"><h2>Candidatos vizinhos</h2></div>

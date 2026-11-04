@@ -63,6 +63,10 @@ export function validateModel(model, options) {
   return request('/models/validate', { model: normalizeModel(model) }, options);
 }
 
+export function fetchStandardForm(model, options) {
+  return request('/models/standard-form', { model: normalizeModel(model) }, options);
+}
+
 export function solveModel(model, options) {
   return request('/solves', {
     model: normalizeModel(model),

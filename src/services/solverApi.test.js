@@ -166,3 +166,21 @@ test('fingerprint tolera nome temporariamente vazio e limites transitórios inv�
     ...canonical, variables: [{ ...canonical.variables[0], lower_bound: 10 }],
   }), pristine);
 });
+
+test('forma padrão é solicitada sem alterar o contrato de modelagem', async t => {
+  const previous = globalThis.fetch;
+  t.after(() => { globalThis.fetch = previous; });
+  globalThis.fetch = async (url, request) => {
+    assert.equal(url.endsWith('/api/v1/models/standard-form'), true);
+    const payload = JSON.parse(request.body);
+    assert.equal(payload.model.constraints.length, 3);
+    return { ok: true, json: async () => ({
+      columns: ['x1', 'x2', 's1'], rows: [{ basic: 's1', rhs: 4 }],
+      phase_one_required: false, variable_reconstruction: [],
+    }) };
+  };
+  const { fetchStandardForm } = await import('./solverApi.js');
+  const result = await fetchStandardForm(sample);
+  assert.equal(result.rows[0].rhs, 4);
+  assert.equal(result.phase_one_required, false);
+});
