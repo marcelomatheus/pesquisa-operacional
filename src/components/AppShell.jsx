@@ -96,7 +96,9 @@ export function AppShell({ children, model, setModel, logs, selectedEntity, setS
       setSelectedEntity(current => current?.type === 'branch_node' ? current : { type: 'result' });
     } else if (location.pathname === '/review') {
       setSelectedEntity({ type: 'review' });
-    } else if (location.pathname !== '/editor' && location.pathname !== '/results/dual') {
+    } else if (location.pathname === '/results/dual') {
+      setSelectedEntity(current => current?.type === 'tableau' && current.source === 'dual' ? current : { type: 'model' });
+    } else if (location.pathname !== '/editor') {
       setSelectedEntity({ type: 'model' });
     }
   }, [location.pathname]);

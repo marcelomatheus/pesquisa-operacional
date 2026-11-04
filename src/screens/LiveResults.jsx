@@ -109,7 +109,7 @@ export function LiveInteger({ result, task, onStart, setSelectedEntity }) {
           <div className="panel__header"><h2>Árvore de ramificações</h2><span>{data.nodes.length} nós registrados</span></div>
           <div style={{ maxHeight: 560, overflow: 'auto' }}>
             {data.nodes.map(node => <button type="button" key={node.id} className="pr5-branch-node" onClick={() => setSelectedEntity?.({ type: 'branch_node', id: node.id })} style={{ borderBottom: '1px solid var(--border-color, #8884)', padding: '12px 0', paddingLeft: Math.min(node.depth * 22, 160) }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}><strong>{node.id} · {node.branch_constraint || 'Relaxação inicial'}</strong><span>{node.status}</span></div>
+              <span style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}><strong>{node.id} · {node.branch_constraint || 'Relaxação inicial'}</strong><span>{node.status}</span></span>
               <small>Relaxação: {node.relaxation_status} · Z = {displayNumber(node.relaxation_objective)} · {node.pivot_count} pivôs</small>
             </button>)}
           </div>
