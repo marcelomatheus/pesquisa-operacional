@@ -104,6 +104,38 @@ export function calculateGeometry(model, options) {
   }, options);
 }
 
+
+export async function generateReportPdf(model, options, { signal } = {}) {
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}/reports/pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: normalizeModel(model), options }),
+      signal,
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') throw error;
+    throw new SolverApiError('Não foi possível conectar ao servidor de relatórios.');
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    const detail = data?.errors?.[0]?.message || data?.detail || `Falha HTTP ${response.status}`;
+    throw new SolverApiError(detail, {
+      status: response.status, code: data?.code || 'HTTP_ERROR', fields: data?.errors || [],
+    });
+  }
+  const type = response.headers.get('content-type') || '';
+  if (!type.includes('application/pdf')) {
+    throw new SolverApiError('O servidor retornou um formato inválido para o relatório.');
+  }
+  const document = await response.blob();
+  if (!document.size) {
+    throw new SolverApiError('O servidor retornou um PDF vazio.');
+  }
+  return document;
+}
+
 export function displayNumber(value, digits = 4) {
   if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
   return Number(value).toLocaleString('pt-BR', { maximumFractionDigits: digits });
