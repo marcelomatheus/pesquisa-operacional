@@ -44,7 +44,17 @@ export default function App() {
       try {
         const stored = await loadDraft();
         if (!cancelled && stored) {
-          const canonical = normalizeModelInput(stored, { preserveId: true });
+          let canonical;
+          try {
+            canonical = normalizeModelInput(stored, { preserveId: true });
+          } catch (error) {
+            // A draft may legitimately be mid-edit (empty name or conflicting bounds).
+            // Restore the editable shape instead of discarding the user's work.
+            if (stored.schema_version !== 1 || !Array.isArray(stored.variables)
+                || !Array.isArray(stored.objective) || !Array.isArray(stored.constraints)) throw error;
+            canonical = stored;
+            setStorageWarning('Rascunho recuperado com campos incompletos. Corrija-os antes de resolver.');
+          }
           setModel(canonical);
           const saved = await getSavedModel(canonical.id);
           if (!cancelled) setSavedSignature(saved ? JSON.stringify(normalizeModelInput(saved, { preserveId: true })) : null);
