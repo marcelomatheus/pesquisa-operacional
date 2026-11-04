@@ -266,7 +266,7 @@ def add_integer(story, st, result):
                                 st, widths=[90, 90, 230, 150, 115]))
 
 
-def add_geometry(story, st, geometry, primal, integer):
+def add_geometry(story, st, geometry, primal, integer, alternatives, model):
     section(story, st, "4. Representacao grafica")
     if geometry.get("status") != "feasible":
         add_status(story, st, geometry)
@@ -274,9 +274,14 @@ def add_geometry(story, st, geometry, primal, integer):
     add_line(story, st, f"Regiao: {geometry['region_type']} | "
              f"Limitada: {'sim' if geometry.get('bounded') else 'nao'} | "
              f"Dimensao: {geometry.get('dimension')} | Vertices: {len(geometry.get('vertices') or [])}")
-    story.append(GeometryFigure(geometry, primal, integer))
+    names = tuple(variable.id for variable in model.variables)
+    multiple_certified = bool(alternatives and alternatives.get("status") == "multiple"
+                              and alternatives.get("certified"))
+    story.append(GeometryFigure(
+        geometry, primal, integer, variable_names=names, multiple_certified=multiple_certified
+    ))
     add_line(story, st, "Legenda: roxo = regiao e otimo continuo; amarelo = curvas de nivel "
-             "e fronteira otima; verde = solucao inteira; ciano = restricoes; "
+             "e fronteira otima quando certificada; verde = solucao inteira; ciano = restricoes; "
              "cinza = malha inteira.", "small")
     if not geometry.get("bounded"):
         add_line(story, st, "A regiao e ilimitada. O desenho mostra somente a parte recortada "
@@ -387,7 +392,8 @@ def build_report_pdf(payload):
     if "integer" in selected:
         add_integer(story, st, analysis["integer"])
     if "geometry" in selected:
-        add_geometry(story, st, analysis["geometry"], primal, integer)
+        add_geometry(story, st, analysis["geometry"], primal, integer,
+                     analysis.get("alternatives"), payload["model"])
     if "dual" in selected:
         add_dual(story, st, analysis["dual"], payload["max_tableaux"])
     if "alternatives" in selected:

@@ -133,6 +133,9 @@ export async function generateReportPdf(model, options, { signal } = {}) {
   if (!document.size) {
     throw new SolverApiError('O servidor retornou um PDF vazio.');
   }
+  if (await document.slice(0, 5).text() !== '%PDF-') {
+    throw new SolverApiError('O conteúdo retornado não é um PDF válido.');
+  }
   return document;
 }
 

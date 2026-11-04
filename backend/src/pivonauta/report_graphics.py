@@ -7,11 +7,14 @@ from reportlab.platypus import Flowable
 
 
 class GeometryFigure(Flowable):
-    def __init__(self, geometry: dict, primal: dict, integer: dict | None = None):
+    def __init__(self, geometry: dict, primal: dict, integer: dict | None = None,
+                 variable_names: tuple[str, str] = ("x1", "x2"), multiple_certified: bool = False):
         super().__init__()
         self.geometry = geometry
         self.primal = primal
         self.integer = integer or {}
+        self.variable_names = variable_names
+        self.multiple_certified = multiple_certified
         self.width = 685
         self.height = 300
 
@@ -75,7 +78,7 @@ class GeometryFigure(Flowable):
             x, y = to_xy(point)
             c.setFillColor(colors.HexColor("#778399"))
             c.circle(x, y, 1.5, stroke=0, fill=1)
-        face = self.geometry.get("optimal_face") or []
+        face = (self.geometry.get("optimal_face") or []) if self.multiple_certified else []
         if len(face) == 2:
             c.setStrokeColor(colors.HexColor("#D49A32"))
             c.setLineWidth(3.3)
@@ -87,9 +90,8 @@ class GeometryFigure(Flowable):
             c.circle(x, y, 4.7, stroke=0, fill=1)
         values = self.integer.get("variables")
         if values:
-            keys = list(values)
-            if len(keys) == 2:
-                point = [values[key] for key in keys]
+            if all(name in values for name in self.variable_names):
+                point = [values[name] for name in self.variable_names]
                 if xmin <= point[0] <= xmax and ymin <= point[1] <= ymax:
                     x, y = to_xy(point)
                     c.setFillColor(colors.HexColor("#148C65"))
@@ -102,8 +104,8 @@ class GeometryFigure(Flowable):
             c.drawCentredString(left + width * index / 5, bottom - 15, f"{xx:.4g}")
             c.drawRightString(left - 6, bottom + height * index / 5 - 3, f"{yy:.4g}")
         c.setFont("Helvetica", 8)
-        c.drawRightString(left + width, bottom - 28, "x1")
-        c.drawString(left - 18, bottom + height + 10, "x2")
+        c.drawRightString(left + width, bottom - 28, self.variable_names[0][:12])
+        c.drawString(left - 18, bottom + height + 10, self.variable_names[1][:12])
         c.restoreState()
 
 
