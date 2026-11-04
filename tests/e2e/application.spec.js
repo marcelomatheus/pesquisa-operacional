@@ -24,7 +24,7 @@ async function importModel(page, model = wyndor) {
   await page.getByRole('button', { name: 'Validar e pré-visualizar' }).click();
   await expect(page.getByText('Pré-visualização validada')).toBeVisible();
   await page.getByRole('button', { name: 'Aplicar formulação' }).click();
-  await expect(page.getByRole('textbox', { name: 'Nome do modelo' })).toHaveValue(model.name);
+  await expect(page.locator('main .model-name-input')).toHaveValue(model.name);
   await expect(page.getByRole('button', { name: 'Revisar modelo' })).toBeEnabled();
 }
 
@@ -92,13 +92,13 @@ test('JSON inválido não altera modelo e biblioteca recupera o salvo', async ({
   await page.getByRole('button', { name: 'Validar e pré-visualizar' }).click();
   await expect(page.getByRole('alert')).toContainText('JSON inválido');
   await page.getByRole('button', { name: 'Cancelar' }).click();
-  await expect(page.getByRole('textbox', { name: 'Nome do modelo' })).toHaveValue('Wyndor E2E');
+  await expect(page.locator('main .model-name-input')).toHaveValue('Wyndor E2E');
   await page.goto('/#/library');
   await page.getByRole('button', { name: 'Salvar modelo ativo' }).click();
   await expect(page.getByText('Wyndor E2E')).toBeVisible();
   await page.reload();
   await page.goto('/#/editor');
-  await expect(page.getByRole('textbox', { name: 'Nome do modelo' })).toHaveValue('Wyndor E2E');
+  await expect(page.locator('main .model-name-input')).toHaveValue('Wyndor E2E');
 });
 
 test('editor algébrico altera coeficientes sem executar texto arbitrário', async ({ page }) => {
@@ -124,7 +124,7 @@ test('API desconectada produz erro visível, sem inventar resultado', async ({ p
 
 test('páginas permanecem acessíveis no viewport de dispositivo móvel', async ({ page }) => {
   await page.goto('/#/editor');
-  await expect(page.getByRole('textbox', { name: 'Nome do modelo' })).toBeVisible();
+  await expect(page.locator('main .model-name-input')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Revisar modelo' })).toBeVisible();
   await page.goto('/#/results/report');
   await expect(page.getByRole('heading', { name: 'Relatório técnico em PDF' })).toBeVisible();
