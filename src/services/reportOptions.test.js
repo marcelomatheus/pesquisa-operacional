@@ -91,3 +91,14 @@ test('PDF vazio é rejeitado', async t => {
   });
   await assert.rejects(generateReportPdf(sample, reportOptions(['model'])), /PDF vazio/);
 });
+
+test('bytes que não começam por assinatura PDF são rejeitados', async t => {
+  const previous = globalThis.fetch;
+  t.after(() => { globalThis.fetch = previous; });
+  globalThis.fetch = async () => ({
+    ok: true,
+    headers: { get: () => 'application/pdf' },
+    blob: async () => new Blob(['not-a-pdf'], { type: 'application/pdf' }),
+  });
+  await assert.rejects(generateReportPdf(sample, reportOptions(['model'])), /não é um PDF válido/);
+});
