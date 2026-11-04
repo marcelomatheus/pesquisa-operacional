@@ -1,0 +1,90 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  normalizeModel, modelFingerprint, solveModel, solveInteger, validateModel,
+  SolverApiError, displayNumber,
+} from './solverApi.js';
+
+const sample = {
+  name: 'Wyndor',
+  sense: 'max',
+  variables: ['x₁', 'x₂'],
+  objective: [3, 5],
+  constraints: [
+    { id: 'w1', values: [1, 0], operator: '≤', rhs: 4 },
+    { id: 'w2', values: [0, 2], operator: '≤', rhs: 12 },
+    { id: 'w3', values: [3, 2], operator: '≤', rhs: 18 },
+  ],
+  optimum: { x: 99, y: 99, z: 99 },
+  integer: { x: 99, y: 99, z: 99 },
+};
+
+test('converte a formulação sem enviar soluções demonstrativas', () => {
+  const model = normalizeModel(sample);
+  assert.deepEqual(model.variables.map(v => v.id), ['x1', 'x2']);
+  assert.deepEqual(model.variables.map(v => v.domain), ['continuous', 'continuous']);
+  assert.deepEqual(model.constraints.map(v => v.operator), ['le', 'le', 'le']);
+  assert.equal(model.constraints[0].coefficients[0], 1);
+  assert.equal('optimum' in model, false);
+  assert.equal('integer' in model, false);
+});
+
+test('fingerprint ignora resultados estáticos e muda quando restrições mudam', () => {
+  const changedSeed = { ...sample, optimum: { z: 10 } };
+  assert.equal(modelFingerprint(sample), modelFingerprint(changedSeed));
+  const changedConstraint = { ...sample, constraints: [{ ...sample.constraints[0], rhs: 8 }, ...sample.constraints.slice(1)] };
+  assert.notEqual(modelFingerprint(sample), modelFingerprint(changedConstraint));
+});
+
+test('domínio inteiro é enviado na formulação', () => {
+  const model = normalizeModel({ ...sample, domain: 'integer' });
+  assert.deepEqual(model.variables.map(v => v.domain), ['integer', 'integer']);
+});
+
+test('solves envia opções e recebe tableaux reais sem simular', async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async (url, req) => {
+    assert.match(url, /\/api\/v1\/solves$/);
+    const payload = JSON.parse(req.body);
+    assert.equal(payload.options.include_trace, true);
+    assert.equal(payload.model.constraints.length, 3);
+    return { ok: true, json: async () => ({ status: 'optimal', objective_value: 36, iterations: [{ phase: 'phase_2', matrix: [[1, 2]], basis: [] }], pivot_count: 2 }) };
+  };
+  const result = await solveModel(sample);
+  assert.equal(result.objective_value, 36);
+  assert.equal(result.iterations.length, 1);
+});
+
+test('branch and bound usa opção de integralidade completa', async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async (_url, req) => {
+    const payload = JSON.parse(req.body);
+    assert.equal(payload.options.force_all_integer, true);
+    return { ok: true, json: async () => ({ status: 'optimal', objective_value: 36, nodes: [{ id: 'P0' }], explored_nodes: 1 }) };
+  };
+  const result = await solveInteger(sample);
+  assert.equal(result.nodes[0].id, 'P0');
+});
+
+test('validação HTTP 422 propaga erro por campo', async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => ({ ok: false, status: 422, json: async () => ({ code: 'MODEL_VALIDATION_ERROR', detail: 'Invalid model', errors: [{ field: 'model.objective', message: 'Dimensões inválidas' }] }) });
+  await assert.rejects(validateModel(sample), error =>
+    error instanceof SolverApiError && error.status === 422 && error.fields[0].field === 'model.objective');
+});
+
+test('falha de conexão não é apresentada como solução calculada', async t => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => { throw new TypeError('Network failure'); };
+  await assert.rejects(solveModel(sample), /Não foi possível conectar/);
+});
+
+test('formatação numérica não inventa valores indisponíveis', () => {
+  assert.equal(displayNumber(null), '—');
+  assert.equal(displayNumber(NaN), '—');
+  assert.ok(displayNumber(5.25).includes('5,25'));
+});

@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Check, ChevronDown, CircleAlert, Copy, Equal, GripVertical, Plus, Sparkles, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { validateModel } from '../services/solverApi';
 import { useNavigate } from 'react-router-dom';
 
 function NumberField({ value, onChange, label }) {
@@ -12,6 +13,19 @@ export function Editor({ model, setModel, pushLog, setSelectedEntity }) {
   const [showImporter, setShowImporter] = useState(false);
   const [jsonText, setJsonText] = useState('');
   const [importError, setImportError] = useState('');
+  const [apiValidation, setApiValidation] = useState({ state: 'checking', message: '' });
+  useEffect(() => {
+    const controller = new AbortController();
+    setApiValidation({ state: 'checking', message: '' });
+    const timer = setTimeout(() => {
+      validateModel(model, { signal: controller.signal })
+        .then(() => setApiValidation({ state: 'valid', message: 'Estrutura validada pela API' }))
+        .catch(error => {
+          if (error.name !== 'AbortError') setApiValidation({ state: 'invalid', message: error.message });
+        });
+    }, 350);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [model]);
   const updateObjective = (index, value) => setModel((current) => ({ ...current, objective: current.objective.map((item, itemIndex) => itemIndex === index ? value : item) }));
   const updateConstraint = (id, patch) => setModel((current) => ({ ...current, constraints: current.constraints.map((item) => item.id === id ? { ...item, ...patch } : item) }));
   const addConstraint = () => {
@@ -29,15 +43,15 @@ export function Editor({ model, setModel, pushLog, setSelectedEntity }) {
   const applyJson = () => {
     try {
       const parsed = JSON.parse(jsonText);
-      if (!Array.isArray(parsed.objective) || parsed.objective.length !== 2 || !Array.isArray(parsed.constraints) || parsed.constraints.length === 0) throw new Error('Estrutura incompleta');
+      if (!Array.isArray(parsed.objective) || parsed.objective.length !== 2 || !Array.isArray(parsed.constraints) || parsed.constraints.length === 0 || parsed.constraints.some(item => !['≤', '=', '≥'].includes(item.operator) || !Array.isArray(item.values) || item.values.length !== 2)) throw new Error('Estrutura incompleta');
       setModel((current) => ({
         ...current,
         name: parsed.name || current.name,
         sense: parsed.sense === 'min' ? 'min' : 'max',
         objective: parsed.objective.map(Number),
-        constraints: parsed.constraints.map((item, index) => ({ id: `imported-${Date.now()}-${index}`, name: item.name || `Restrição ${index + 1}`, values: item.values.map(Number), operator: ['≤', '=', '≥'].includes(item.operator) ? item.operator : '≤', rhs: Number(item.rhs) })),
+        constraints: parsed.constraints.map((item, index) => ({ id: `imported-${Date.now()}-${index}`, name: item.name || `Restrição ${index + 1}`, values: item.values.map(Number), operator: item.operator, rhs: Number(item.rhs) })),
       }));
-      pushLog({ tone: 'cyan', text: 'Formulação JSON importada e validada', time: 'agora' });
+      pushLog({ tone: 'cyan', text: 'Formulação JSON importada para revisão', time: 'agora' });
       setShowImporter(false);
     } catch {
       setImportError('Não foi possível importar. Verifique objetivo, restrições e operadores.');
@@ -48,11 +62,11 @@ export function Editor({ model, setModel, pushLog, setSelectedEntity }) {
     <div className="page editor-page">
       <header className="editor-topbar">
         <div><span className="breadcrumb">Workspace / Modelos /</span><input className="model-name-input" value={model.name} onChange={(event) => setModel((current) => ({ ...current, name: event.target.value }))} /></div>
-        <div className="editor-status"><span><Check size={14} />Salvo</span><button className="button button--primary" onClick={() => navigate('/review')}>Revisar modelo <ArrowRight size={17} /></button></div>
+        <div className="editor-status"><span><Check size={14} />Edição local</span><button className="button button--primary" onClick={() => navigate('/review')}>Revisar modelo <ArrowRight size={17} /></button></div>
       </header>
 
       <section className="editor-canvas dotted-canvas">
-        <div className="canvas-toolbar"><button className={!showImporter ? 'is-active' : ''} onClick={() => setShowImporter(false)}>Editor algébrico</button><button className={showImporter ? 'is-active' : ''} onClick={openImporter}>Importar JSON</button><span /><small>Validação automática a cada alteração</small></div>
+        <div className="canvas-toolbar"><button className={!showImporter ? 'is-active' : ''} onClick={() => setShowImporter(false)}>Editor algébrico</button><button className={showImporter ? 'is-active' : ''} onClick={openImporter}>Importar JSON</button><span /><small>{apiValidation.state === 'checking' ? 'Validando modelo…' : apiValidation.state === 'valid' ? apiValidation.message : 'Validação pendente ou falhou'}</small></div>
 
         <AnimatePresence>
           {showImporter && <motion.section className="json-importer" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}>
@@ -105,7 +119,7 @@ export function Editor({ model, setModel, pushLog, setSelectedEntity }) {
         </motion.article>
       </section>
 
-      <div className="editor-footer-notice"><Sparkles size={17} /><p><strong>Pré-validação concluída.</strong> O modelo tem duas variáveis, então a solução gráfica poderá ser construída.</p><button onClick={() => navigate('/review')}>Prosseguir <ArrowRight size={16} /></button></div>
+      <div className="editor-footer-notice"><Sparkles size={17} /><p><strong>{apiValidation.state === 'valid' ? 'Estrutura validada.' : apiValidation.state === 'checking' ? 'Validando estrutura…' : 'Corrija a formulação.'}</strong> {apiValidation.state === 'invalid' ? apiValidation.message : 'A viabilidade matemática só será conhecida após executar o Simplex.'}</p><button disabled={apiValidation.state !== 'valid'} onClick={() => navigate('/review')}>Prosseguir <ArrowRight size={16} /></button></div>
     </div>
   );
 }

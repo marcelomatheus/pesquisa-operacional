@@ -119,7 +119,7 @@ export function AppShell({ children, model, setModel, logs, selectedEntity, setS
           <ChevronRight size={15} />
         </button>
 
-        <div className="context-panel__footer"><AppNavLink item={primaryNavigation[2]} /><div className="project-status"><span>Etapa 1</span><i><b /></i><strong>92%</strong></div></div>
+        <div className="context-panel__footer"><AppNavLink item={primaryNavigation[2]} /><div className="project-status"><span>Motor matemático próprio</span></div></div>
       </aside>
 
       <header className="mobile-topbar"><button className="icon-button" onClick={() => setMobileMenu(true)} aria-label="Abrir navegação"><Menu size={19} /></button><Logo /><button className="icon-button" onClick={() => setInspectorOpen(true)} aria-label="Abrir inspetor"><PanelRightOpen size={19} /></button></header>
@@ -154,7 +154,7 @@ export function AppShell({ children, model, setModel, logs, selectedEntity, setS
       </aside>
 
       <section className={`math-console ${consoleOpen ? 'is-open' : ''}`} aria-label="Console matemático">
-        <button className="console-handle" onClick={() => setConsoleOpen((value) => !value)} aria-expanded={consoleOpen}><span><TerminalSquare size={15} />Console <i>{logs.length}</i></span><span className="console-handle__status"><b />sem erros <ChevronDown className={consoleOpen ? '' : 'is-rotated'} size={15} /></span></button>
+        <button className="console-handle" onClick={() => setConsoleOpen((value) => !value)} aria-expanded={consoleOpen}><span><TerminalSquare size={15} />Console <i>{logs.length}</i></span><span className="console-handle__status"><b />eventos <ChevronDown className={consoleOpen ? '' : 'is-rotated'} size={15} /></span></button>
         <AnimatePresence initial={false}>{consoleOpen && <motion.div className="console-content" initial={{ height: 0 }} animate={{ height: 126 }} exit={{ height: 0 }}>{logs.map((log, index) => <div className="console-line" key={`${log.text}-${index}`}><span className={`console-dot tone-${log.tone}`} /><time>{log.time}</time><p>{log.text}</p></div>)}</motion.div>}</AnimatePresence>
       </section>
 
