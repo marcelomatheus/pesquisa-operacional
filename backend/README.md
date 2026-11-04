@@ -40,3 +40,32 @@ são apenas candidatos testados, **não soluções ótimas garantidas**.
 - Primitivas geométricas reais e integração com `FeasibleGraph`.
 - Relatórios exportáveis e integração integral do frontend.
 - Limites operacionais de execução e testes E2E.
+
+## Análises matemáticas complementares
+
+Os seguintes endpoints usam **somente Python puro** no domínio matemático:
+
+- `POST /api/v1/solves/dual`: constrói o dual de problemas de minimização ou maximização,
+  resolve primal e dual com Simplex próprio, compara objetivos e verifica
+  complementaridade. O retorno inclui o modelo dual e os tableaux do dual.
+- `POST /api/v1/solves/alternatives`: explora bases de custo reduzido nulo e
+  somente declara `multiple` ao encontrar um vetor ótimo distinto e viável.
+  Resultados `undetermined`/`not_certified` não são provas de unicidade.
+- `POST /api/v1/geometry`: calcula restrições, interseções, vértices, região
+  recortada à janela de visualização e boundedness para exatamente duas variáveis.
+  O polígono de exibição de uma região ilimitada **não** é a região matemática toda.
+
+Os resultados duais se referem à relaxação linear contínua. Ao converter limites
+inferiores não nulos, é retornado `objective_offset` para reconstruir o objetivo
+original do dual. O campo `dual_model.source_rows` identifica restrições derivadas
+de limites superiores de variáveis.
+
+### Testes
+
+```bash
+cd backend
+pytest -q
+```
+
+Há testes unitários para radioterapia, Wyndor, variáveis livres e com limites,
+regiões de dimensão 0/1/2, regiões ilimitadas, modelos inviáveis e bases degeneradas.

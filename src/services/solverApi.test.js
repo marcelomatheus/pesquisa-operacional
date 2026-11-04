@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeModel, modelFingerprint, solveModel, solveInteger, validateModel,
+  solveDual, analyzeAlternatives, calculateGeometry,
   SolverApiError, displayNumber,
 } from './solverApi.js';
 
@@ -87,4 +88,42 @@ test('formatação numérica não inventa valores indisponíveis', () => {
   assert.equal(displayNumber(null), '—');
   assert.equal(displayNumber(NaN), '—');
   assert.ok(displayNumber(5.25).includes('5,25'));
+});
+
+test('dual envia modelo e solicitação de tableaux reais', async t => {
+  const previous = globalThis.fetch;
+  t.after(() => { globalThis.fetch = previous; });
+  globalThis.fetch = async (url, request) => {
+    assert.equal(url.endsWith('/api/v1/solves/dual'), true);
+    const payload = JSON.parse(request.body);
+    assert.equal(payload.model.objective[0], 3);
+    assert.equal(payload.options.include_trace, true);
+    return { ok: true, json: async () => ({ status: 'optimal', dual_objective: 36, dual: { iterations: [] } }) };
+  };
+  assert.equal((await solveDual(sample)).dual_objective, 36);
+});
+
+test('diagnóstico exige execução real do servidor', async t => {
+  const previous = globalThis.fetch;
+  t.after(() => { globalThis.fetch = previous; });
+  globalThis.fetch = async (url, request) => {
+    assert.equal(url.endsWith('/solves/alternatives'), true);
+    const payload = JSON.parse(request.body);
+    assert.equal(payload.options.max_bases, 200);
+    return { ok: true, json: async () => ({ status: 'multiple', certified: true, alternative: { x1: 1, x2: 3 } }) };
+  };
+  const result = await analyzeAlternatives(sample);
+  assert.equal(result.certified, true);
+});
+
+test('geometria envia restrições reais e recebe vértices', async t => {
+  const previous = globalThis.fetch;
+  t.after(() => { globalThis.fetch = previous; });
+  globalThis.fetch = async (url, request) => {
+    assert.equal(url.endsWith('/api/v1/geometry'), true);
+    assert.equal(JSON.parse(request.body).model.constraints.length, 3);
+    return { ok: true, json: async () => ({ status: 'feasible', bounded: true, vertices: [[0, 0], [2, 6]] }) };
+  };
+  const result = await calculateGeometry(sample);
+  assert.equal(result.vertices.length, 2);
 });

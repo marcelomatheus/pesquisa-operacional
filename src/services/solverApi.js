@@ -84,6 +84,24 @@ export function solveInteger(model, options) {
   }, options);
 }
 
+export function solveDual(model, options) {
+  return request('/solves/dual', {
+    model: normalizeModel(model),
+    options: { max_iterations: 500, time_limit: 3, include_trace: true },
+  }, options);
+}
+
+export function analyzeAlternatives(model, options) {
+  return request('/solves/alternatives', {
+    model: normalizeModel(model),
+    options: { max_bases: 200, max_iterations: 500, time_limit: 3, tolerance: 1e-8 },
+  }, options);
+}
+
+export function calculateGeometry(model, options) {
+  return request('/geometry', { model: normalizeModel(model) }, options);
+}
+
 export function displayNumber(value, digits = 4) {
   if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
   return Number(value).toLocaleString('pt-BR', { maximumFractionDigits: digits });

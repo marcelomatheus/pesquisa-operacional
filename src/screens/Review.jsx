@@ -39,8 +39,8 @@ export function Review({ model, solve, solving, solveError }) {
         </article>
         <aside className="run-card">
           <div className="run-card__halo"><CircleDot size={28} /></div>
-          <span className="panel-kicker">MOTOR DE OTIMIZAÇÃO</span><h2>Pronto para decolar</h2><p>O PivôNauta registrará cada decisão algébrica e permitirá acompanhar os tableaux calculados. Análises extras estão sendo implementadas por etapas.</p>
-          <ul><li><Check size={16} />Simplex primal tabular</li><li><Check size={16} />Solução inteira e arredondamento</li><li><CircleDot size={16} />Geometria dinâmica (pendente)</li><li><CircleDot size={16} />Dual e casos especiais (pendentes)</li></ul>
+          <span className="panel-kicker">MOTOR DE OTIMIZAÇÃO</span><h2>Pronto para decolar</h2><p>O PivôNauta registrará cada decisão algébrica e permite acompanhar tableaux e analisar região viável, dualidade e soluções ótimas alternativas.</p>
+          <ul><li><Check size={16} />Simplex primal tabular</li><li><Check size={16} />Solução inteira e arredondamento</li><li><Check size={16} />Geometria dinâmica</li><li><Check size={16} />Dual e ótimos alternativos</li></ul>
           <button className="button button--primary run-button" disabled={solving || validation.state !== 'valid'} onClick={solve}>
             {solving ? <><span className="spinner" />Calculando órbita…</> : <><Play size={18} fill="currentColor" />Resolver modelo</>}
           </button>

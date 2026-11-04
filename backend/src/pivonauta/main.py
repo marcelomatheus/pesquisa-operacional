@@ -13,7 +13,10 @@ from fastapi.responses import JSONResponse
 from . import __version__
 from .domain import InvalidModel
 from .branch_bound import solve_branch_bound
-from .schemas import IntegerRequest, ModelRequest, SolveRequest
+from .schemas import AnalysisRequest, IntegerRequest, ModelRequest, SolveRequest
+from .duality import solve_dual
+from .alternatives import analyze_optima
+from .geometry import build_geometry
 from .simplex import solve_simplex
 
 logger = logging.getLogger("pivonauta")
@@ -110,3 +113,21 @@ def solve_integer(request: IntegerRequest):
     model = request.model.to_domain()
     result = solve_branch_bound(model, **request.options.model_dump())
     return result.to_dict()
+
+
+@app.post("/api/v1/solves/dual")
+def solve_dual_problem(request: SolveRequest):
+    model = request.model.to_domain()
+    return solve_dual(model, **request.options.model_dump()).to_dict()
+
+
+@app.post("/api/v1/solves/alternatives")
+def analyze_alternative_optima(request: AnalysisRequest):
+    model = request.model.to_domain()
+    return analyze_optima(model, **request.options.model_dump()).to_dict()
+
+
+@app.post("/api/v1/geometry")
+def calculate_geometry(request: ModelRequest):
+    model = request.model.to_domain()
+    return build_geometry(model).to_dict()
