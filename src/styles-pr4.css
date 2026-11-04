@@ -1,0 +1,24 @@
+/* PR #4 — constrained enhancements; preserves the established UI language. */
+.pr4-coefficients { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.pr4-coefficients label { display: inline-flex; align-items: center; gap: 7px; color: var(--text-muted); font-family: var(--font-mono); }
+.pr4-coefficients input { width: 75px; min-height: 38px; color: var(--text); background: var(--surface-1); border: 1px solid var(--line-strong); padding: 7px; border-radius: 2px; }
+.pr4-table-scroll { width: 100%; overflow-x: auto; margin: 14px 0; }
+.pr4-model-table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 12px; }
+.pr4-model-table th { text-align: left; padding: 8px; color: var(--text-dim); border-bottom: 1px solid var(--line); font-size: 10px; white-space: nowrap; }
+.pr4-model-table td { padding: 7px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.pr4-model-table input:not([type="checkbox"]), .pr4-model-table select { min-width: 58px; max-width: 170px; width: 100%; min-height: 36px; background: var(--surface-1); border: 1px solid var(--line-strong); border-radius: 2px; color: var(--text); padding: 5px 8px; }
+.pr4-model-table input[type="number"] { width: 67px; }
+.pr4-model-table button:disabled { opacity: .4; cursor: not-allowed; }
+.pr4-bound { min-width: 120px; }
+.pr4-bound label { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; white-space: nowrap; font-size: 10px; color: var(--text-muted); }
+.pr4-invalid-number, .pr4-model-table input[aria-invalid="true"], .pr4-coefficients input[aria-invalid="true"] { border-color: #ef7373 !important; outline-color: #ef7373; }
+.pr4-import-panel { max-width: 980px; }
+.pr4-import-panel textarea { min-height: 260px; resize: vertical; }
+.pr4-file-import { display: inline-flex; gap: 9px; align-items: center; margin: 10px 0; color: var(--cyan); font-size: 12px; cursor: pointer; }
+.pr4-file-import input { max-width: 220px; font-size: 11px; }
+.pr4-import-panel footer { flex-wrap: wrap; margin-top: 12px; }
+.pr4-preview { padding: 14px; margin: 12px 0; border: 1px solid #38695e; background: rgba(52,211,153,.07); }
+.pr4-preview p { margin: 5px 0; } .pr4-preview small { color: var(--text-muted); }
+.pr4-storage-status { font-size: 11px; color: var(--text-muted); margin: 0 6px; }
+.pr4-storage-warning { color: #f59e0b; font-size: 11px; }
+@media(max-width: 720px) { .pr4-coefficients { gap: 8px; } .pr4-coefficients input { width: 60px; } .pr4-import-panel footer { justify-content: stretch; } .pr4-import-panel footer button { flex: 1; } }

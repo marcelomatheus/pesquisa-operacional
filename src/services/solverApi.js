@@ -1,3 +1,5 @@
+import { mathematicalFingerprint, normalizeModelInput, toApiModel } from './model.js';
+
 /**
  * One adapter between the prototype's view model and the FastAPI contracts.
  * It deliberately sends no seeded optimum/integer values from src/data.js.
@@ -15,29 +17,11 @@ export class SolverApiError extends Error {
 }
 
 export function normalizeModel(model) {
-  const objective = model.objective.map(Number);
-  return {
-    name: model.name?.trim() || 'Modelo sem título',
-    sense: model.sense,
-    variables: objective.map((_, index) => ({
-      id: `x${index + 1}`,
-      domain: model.domain === 'integer' ? 'integer' : 'continuous',
-      lower_bound: 0,
-      upper_bound: null,
-    })),
-    objective,
-    constraints: model.constraints.map((constraint, index) => ({
-      id: String(constraint.id ?? `r${index + 1}`).slice(0, 50),
-      coefficients: constraint.values.map(Number),
-      operator: { '≤': 'le', '≥': 'ge', '=': 'eq' }[constraint.operator] || constraint.operator,
-      rhs: Number(constraint.rhs),
-    })),
-  };
+  return toApiModel(normalizeModelInput(model, { preserveId: true }));
 }
 
 export function modelFingerprint(model) {
-  // Only mathematical inputs count; seeded outputs and UI color are excluded.
-  return JSON.stringify(normalizeModel(model));
+  return mathematicalFingerprint(normalizeModelInput(model, { preserveId: true }));
 }
 
 async function request(path, payload, { signal } = {}) {
@@ -80,7 +64,7 @@ export function solveModel(model, options) {
 export function solveInteger(model, options) {
   return request('/solves/integer', {
     model: normalizeModel(model),
-    options: { max_nodes: 200, max_iterations: 500, time_limit: 10, force_all_integer: true },
+    options: { max_nodes: 200, max_iterations: 500, time_limit: 10, force_all_integer: !normalizeModel(model).variables.some(variable => variable.domain === 'integer') },
   }, options);
 }
 

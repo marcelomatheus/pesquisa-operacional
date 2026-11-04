@@ -177,7 +177,7 @@ export function LiveReport({ model, result, integerTask }) {
       'PIVÔNAUTA — RELATÓRIO DE OTIMIZAÇÃO',
       `Modelo: ${model.name}`,
       `Objetivo: ${model.sense} Z = ${model.objective.join(' ; ')}`,
-      ...model.constraints.map((c, i) => `R${i + 1}: [${c.values.join(', ')}] ${c.operator} ${c.rhs}`),
+      ...model.constraints.map((c, i) => `R${i + 1}: [${c.coefficients.join(', ')}] ${c.operator} ${c.rhs}`),
       '',
       `Simplex: ${result.status}`,
       `Valor objetivo: ${result.objective_value ?? 'indisponível'}`,

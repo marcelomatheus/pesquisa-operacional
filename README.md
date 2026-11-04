@@ -1,4 +1,4 @@
-# PivôNauta 2.1 — protótipo navegável
+# PivôNauta — desenvolvimento da v1.0
 
 Protótipo acadêmico de uma aplicação de Pesquisa Operacional para modelagem e demonstração do método Simplex. A experiência cobre editor algébrico, prova tabular, região de viabilidade, solução inteira, Branch and Bound, modelo dual, casos especiais e relatório.
 
@@ -20,32 +20,52 @@ Protótipo acadêmico de uma aplicação de Pesquisa Operacional para modelagem 
 - Criação de novo modelo, importação JSON e escolha de domínio funcionais.
 - Transformação para forma padrão, ampliação do gráfico e cópia do link funcionais.
 
-## Como executar
+## Como executar a aplicação completa
 
-É necessário ter o [Node.js](https://nodejs.org/) 20 ou superior instalado.
+**Pré-requisitos:** Python 3.11+ e Node.js 20+. O motor matemático é implementado em Python puro; FastAPI e Uvicorn são dependências apenas da API.
 
-### Opção rápida
-
-- Windows: execute `iniciar.bat`.
-- macOS/Linux: execute `./iniciar.sh`.
-
-Os scripts instalam as dependências quando necessário e abrem o servidor local em `http://localhost:4173`.
-
-### Pelo terminal
+Execute na raiz do projeto:
 
 ```bash
-npm install
-npm run dev
+# Windows
+iniciar.bat
+
+# macOS/Linux
+./iniciar.sh
 ```
 
-Depois, acesse `http://localhost:4173`.
+O script cria o ambiente Python em `backend/.venv`, instala dependências necessárias na primeira execução, inicia a API na porta `8000`, verifica `/api/v1/health/ready`, e então inicia o Vite em `http://localhost:4173`. Ctrl+C encerra os dois processos. Caso uma porta esteja ocupada, a inicialização é interrompida com um erro claro.
 
-## Comandos
+**Inicialização manual**, caso prefira separar os servidores:
 
 ```bash
-npm run dev      # ambiente local
-npm run build    # gera versão de produção em dist/
-npm run preview  # visualiza a versão de produção
+cd backend
+python -m venv .venv
+# Ative .venv e instale:
+pip install -e ".[dev]"
+uvicorn pivonauta.main:app --port 8000
+```
+
+Em outro terminal, na raiz: `npm ci && npm run dev`.
+
+## Modelagem da v1 (PR #4)
+
+- Formato JSON versionado com `schema_version: 1`, `variables[]`, `objective[]` e `constraints[]`.
+- Até **10 variáveis** e **30 restrições**, com limites inferiores/superiores e domínio contínuo ou inteiro por variável.
+- Editor visual dinâmico, parser algébrico linear (`Max Z = 3x1 + 5x2`, `x1 + 2x2 <= 8`) e importador/exportador JSON.
+- Importação de modelos do contrato FastAPI, formato canônico e formato de exemplos legado.
+- Pré-visualização e validação antes de aplicar JSON/texto; modelo ativo fica intacto se a importação falhar.
+- IndexedDB: rascunho restaurável após atualizar, biblioteca de modelos locais e histórico breve de execuções. Os dados permanecem no navegador: **exporte JSON para fazer backup**.
+- Geometria é exibida somente para exatamente duas variáveis. Modelos com 1 ou 3–10 variáveis continuam resolvíveis pelos algoritmos, mas não recebem gráficos falsos.
+
+A arquitetura mantém Simplex de duas fases, Branch and Bound, dualidade e geometria implementados manualmente em **Python puro**.
+
+## Comandos de verificação
+
+```bash
+npm test
+npm run build
+cd backend && pytest -q
 ```
 
 ## Jornada sugerida
