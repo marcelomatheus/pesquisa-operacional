@@ -147,3 +147,14 @@ Na tela **Solução inteira**, o Branch and Bound apresenta uma árvore com nós
 A malha inteira pode ser amostrada em regiões extensas; a interface avisa quando isso acontece. Os pontos da malha não são prova de ótimo. Se houver limite de tempo/nós, o incumbente é exibido como **não certificado**.
 
 O endpoint `POST /api/v1/geometry` recebe opções opcionais `show_integer_lattice`, `force_all_integer` e `max_integer_points`. Consulte `docs/REVISAO_ARQUITETURA_PR6.md` para as decisões de arquitetura, limites e riscos.
+
+
+## PR #7 — Relatório acadêmico em PDF
+
+A tela **Relatório** permite selecionar capítulos e gerar um PDF com formulação, solução pelo Simplex, histórico tabular, Branch and Bound, dualidade, geometria e diagnósticos certificados. O arquivo é criado pelo backend a partir de uma nova execução dos algoritmos próprios; os dados de resultados do navegador não são aceitos como prova matemática.
+
+O usuário pode escolher até 100 tableaux por algoritmo, o cenário de programação inteira (`declared` ou `all_integer`), pré-visualizar e baixar o documento. Quando a trilha tabular ultrapassa o limite escolhido, a amostragem é identificada. Gráficos bidimensionais não são criados para modelos com outra dimensão.
+
+A API expõe `POST /api/v1/reports/pdf`, recebendo `model` e `options`. O retorno é `application/pdf`. ReportLab é dependência apenas da camada de apresentação em PDF, sem interferir nos algoritmos matemáticos.
+
+A documentação arquitetural está em [PR #7: relatórios técnicos](docs/REVISAO_ARQUITETURA_PR7.md).

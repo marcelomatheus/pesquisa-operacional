@@ -86,3 +86,14 @@ Execute `pytest -q` em `backend/` para validar a consistência da trilha e a for
 `POST /api/v1/geometry` pode receber `options` com `show_integer_lattice`, `force_all_integer` e `max_integer_points`. Retorna `level_lines` (isolinhas `c·x = k` recortadas ao viewport), `optimal_face` (segmento de ótimo na região quando existir) e `integer_lattice` (amostra de pontos inteiros viáveis, com sinalização de truncamento por stride). Esses campos não substituem a prova de otimização inteira.
 
 Cada nó do Branch and Bound agora inclui `branch_decision` estruturada, que permite reconstruir a relaxação linear no frontend e resolvê-la sob demanda com o próprio Simplex.
+
+
+## Relatórios acadêmicos em PDF
+
+`POST /api/v1/reports/pdf` recebe `model` no mesmo formato dos outros endpoints e um objeto opcional `options` com `sections`, `max_tableaux`, `max_nodes` e `integer_mode`. O serviço devolve o arquivo `application/pdf`, com `Cache-Control: no-store`.
+
+`sections` aceita `model`, `simplex`, `integer`, `geometry`, `dual` e `alternatives`. O resumo executivo é sempre incluído. `max_tableaux` varia de 1 a 100, e `max_nodes` de 1 a 200. `integer_mode` pode ser `declared` ou `all_integer`.
+
+A camada `report_data.py` invoca os algoritmos próprios; `report_pdf.py` compõe texto e tabelas; `report_graphics.py` desenha gráficos vetoriais. ReportLab não executa otimização matemática. Casos não certificados e capítulos não aplicáveis são identificados no PDF.
+
+Teste com `pytest -q`, incluindo `tests/test_report_pdf.py`; as verificações incluem leitura do PDF com `pypdf`.
