@@ -79,3 +79,10 @@ regiões de dimensão 0/1/2, regiões ilimitadas, modelos inviáveis e bases deg
 - Com `include_trace=false`, não são montadas matrizes pedagógicas extras. O motor permanece em Python puro e sem dependências de bibliotecas de otimização.
 
 Execute `pytest -q` em `backend/` para validar a consistência da trilha e a forma padrão.
+
+
+## Sobreposições geométricas do PR #6
+
+`POST /api/v1/geometry` pode receber `options` com `show_integer_lattice`, `force_all_integer` e `max_integer_points`. Retorna `level_lines` (isolinhas `c·x = k` recortadas ao viewport), `optimal_face` (segmento de ótimo na região quando existir) e `integer_lattice` (amostra de pontos inteiros viáveis, com sinalização de truncamento por stride). Esses campos não substituem a prova de otimização inteira.
+
+Cada nó do Branch and Bound agora inclui `branch_decision` estruturada, que permite reconstruir a relaxação linear no frontend e resolvê-la sob demanda com o próprio Simplex.

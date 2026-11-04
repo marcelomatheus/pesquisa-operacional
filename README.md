@@ -136,3 +136,14 @@ O componente de visualização tabular é compartilhado entre o Simplex primal e
 
 Consulte [Revisão de arquitetura — PR #5](docs/REVISAO_ARQUITETURA_PR5.md) para limites e decisões de design.
 
+
+
+## PR #6 — Visualização matemática e árvore de busca
+
+A tela **Região viável** agora exibe curvas de nível calculadas em Python puro, pontos inteiros viáveis no plano, candidatos arredondados, ótimo contínuo, incumbente/ótimo inteiro e arestas de múltiplos ótimos somente quando certificados. Camadas são selecionáveis e pontos podem ser inspecionados por coordenadas. O gráfico permanece restrito a duas variáveis.
+
+Na tela **Solução inteira**, o Branch and Bound apresenta uma árvore com nós e conexões reais, estados de poda, zoom, navegação por ordem de exploração e painel de detalhes. Cada nó explorado pode ter sua relaxação tabular recalculada pela API, sem acrescentar bibliotecas de otimização.
+
+A malha inteira pode ser amostrada em regiões extensas; a interface avisa quando isso acontece. Os pontos da malha não são prova de ótimo. Se houver limite de tempo/nós, o incumbente é exibido como **não certificado**.
+
+O endpoint `POST /api/v1/geometry` recebe opções opcionais `show_integer_lattice`, `force_all_integer` e `max_integer_points`. Consulte `docs/REVISAO_ARQUITETURA_PR6.md` para as decisões de arquitetura, limites e riscos.
