@@ -20,18 +20,18 @@ LINE = colors.HexColor("#DFE4EB")
 PALE = colors.HexColor("#F5F7FA")
 WARN = colors.HexColor("#8A6020")
 STATUS = {
-    "optimal": "Otimo certificado",
-    "infeasible": "Inviavel",
+    "optimal": "Ótimo certificado",
+    "infeasible": "Inviável",
     "unbounded": "Ilimitado",
     "node_limit": "Limite de nos",
     "time_limit": "Limite de tempo",
     "iteration_limit": "Limite de iteracoes",
     "numerical_error": "Falha numerica",
-    "not_applicable": "Nao aplicavel",
-    "not_certified": "Nao certificado",
-    "verification_failed": "Verificacao nao concluida",
-    "multiple": "Otimos multiplos",
-    "unique": "Otimo unico",
+    "not_applicable": "Não aplicável",
+    "not_certified": "Não certificado",
+    "verification_failed": "Verificação não concluída",
+    "multiple": "Ótimos múltiplos",
+    "unique": "Ótimo único",
     "undetermined": "Inconclusivo",
     "feasible": "Viavel",
 }
@@ -121,16 +121,27 @@ def add_line(story, st, text, kind="body"):
     story.append(p(text, st[kind]))
 
 
+REPORT_MESSAGE_TRANSLATIONS = {
+    "Optimal continuous solution certified by tableau":
+        "Solução contínua ótima certificada pelo tableau final.",
+    "All nodes explored/pruned; integer optimum certified":
+        "Todos os nós foram explorados ou podados; ótimo inteiro certificado.",
+    "Primal and dual objectives agree; complementary slackness verified":
+        "Os objetivos primal e dual coincidem; complementaridade verificada.",
+}
+
+
 def add_status(story, st, result, label="Estado"):
     status = result.get("status") or "not_certified"
     add_line(story, st, f"{label}: {STATUS.get(status, status)}.")
     if result.get("message"):
-        add_line(story, st, str(result["message"]), "small")
+        message = str(result["message"])
+        add_line(story, st, REPORT_MESSAGE_TRANSLATIONS.get(message, message), "small")
 
 
 def add_values(story, st, values):
     if values:
-        story.append(make_table(["Variavel", "Valor"],
+        story.append(make_table(["Variável", "Valor"],
                                 [[name, fmt(value)] for name, value in values.items()],
                                 st, widths=[120, 120]))
 
@@ -139,7 +150,7 @@ def tableaux(story, st, result, maximum, heading):
     items = result.get("iterations") or []
     story.append(Paragraph(safe(heading), st["subsection"]))
     if not items:
-        add_line(story, st, "O algoritmo nao retornou tableaux para esta analise.", "small")
+        add_line(story, st, "O algoritmo não retornou tableaux para esta analise.", "small")
         return
     if len(items) > maximum:
         if maximum == 1:
@@ -200,9 +211,9 @@ def tableaux(story, st, result, maximum, heading):
 
 
 def add_model(story, st, model):
-    section(story, st, "1. Formulacao do problema")
+    section(story, st, "1. Formulação do problema")
     names = [variable.id for variable in model.variables]
-    add_line(story, st, f"Funcao objetivo: {model.sense.upper()} Z = "
+    add_line(story, st, f"Função objetivo: {model.sense.upper()} Z = "
              f"{expression(model.objective, names)}")
     rows = []
     for i, constraint in enumerate(model.constraints, 1):
@@ -210,39 +221,39 @@ def add_model(story, st, model):
         rows.append([constraint.id or f"R{i}", expression(constraint.coefficients, names),
                      relation, fmt(constraint.rhs)])
     if rows:
-        story.append(make_table(["Restricao", "Membro esquerdo", "Relacao", "Limite"],
+        story.append(make_table(["Restrição", "Membro esquerdo", "Relação", "Limite"],
                                 rows, st, widths=[85, 435, 70, 85]))
     else:
         add_line(story, st, "Nenhuma restricao explicita.", "small")
     story.append(Spacer(1, 9))
-    story.append(make_table(["Variavel", "Dominio", "Limite inferior", "Limite superior"],
+    story.append(make_table(["Variável", "Domínio", "Limite inferior", "Limite superior"],
                             [[v.id, v.domain, fmt(v.lower_bound), fmt(v.upper_bound)]
                              for v in model.variables],
                             st, widths=[100, 155, 145, 145]))
 
 
 def add_simplex(story, st, primal, limit):
-    section(story, st, "2. Solucao continua pelo Simplex")
+    section(story, st, "2. Solução contínua pelo Simplex")
     add_status(story, st, primal, "Resultado")
-    add_line(story, st, f"Funcao objetivo: {fmt(primal.get('objective_value'))} | "
+    add_line(story, st, f"Função objetivo: {fmt(primal.get('objective_value'))} | "
              f"Pivoteamentos: {primal.get('pivot_count', 0)}")
     add_values(story, st, primal.get("variables"))
-    tableaux(story, st, primal, limit, "Historico tabular primal")
+    tableaux(story, st, primal, limit, "Histórico tabular primal")
 
 
 def add_integer(story, st, result):
-    section(story, st, "3. Programacao inteira e Branch and Bound")
+    section(story, st, "3. Programação inteira e Branch and Bound")
     add_status(story, st, result)
     if result.get("status") == "not_applicable":
         return
     if result.get("mode"):
-        add_line(story, st, f"Cenario: {result['mode']}", "small")
+        add_line(story, st, f"Cenário: {result['mode']}", "small")
     certified = result.get("status") == "optimal"
-    add_line(story, st, "Certificacao: "
+    add_line(story, st, "Certificação: "
              + ("Otimo inteiro certificado por exploracao e podas."
-                if certified else "Incumbente nao certificado como otimo."), "note")
+                if certified else "Incumbente nao certificado como ótimo."), "note")
     add_line(story, st, f"Valor inteiro/incumbente: {fmt(result.get('objective_value'))} | "
-             f"Nos explorados: {result.get('explored_nodes', 0)} | "
+             f"Nós explorados: {result.get('explored_nodes', 0)} | "
              f"Gap informado: {fmt(result.get('optimality_gap'))}")
     add_values(story, st, result.get("variables"))
     candidates = result.get("rounding_candidates") or []
@@ -256,7 +267,7 @@ def add_integer(story, st, result):
             add_line(story, st, f"{len(candidates)-32} candidatos adicionais nao exibidos.", "note")
     nodes = result.get("nodes") or []
     if nodes:
-        story.append(Paragraph("Arvore de ramificacao", st["subsection"]))
+        story.append(Paragraph("Árvore de ramificação", st["subsection"]))
         story.append(BranchTreeFigure(nodes))
         if len(nodes) > 24:
             add_line(story, st, "Diagrama resume os 24 primeiros nos; a tabela registra todos os nos explorados.", "note")
@@ -267,21 +278,21 @@ def add_integer(story, st, result):
 
 
 def add_geometry(story, st, geometry, primal, integer, alternatives, model):
-    section(story, st, "4. Representacao grafica")
+    section(story, st, "4. Representação gráfica")
     if geometry.get("status") != "feasible":
         add_status(story, st, geometry)
         return
-    add_line(story, st, f"Regiao: {geometry['region_type']} | "
+    add_line(story, st, f"Região: {geometry['region_type']} | "
              f"Limitada: {'sim' if geometry.get('bounded') else 'nao'} | "
-             f"Dimensao: {geometry.get('dimension')} | Vertices: {len(geometry.get('vertices') or [])}")
+             f"Dimensão: {geometry.get('dimension')} | Vértices: {len(geometry.get('vertices') or [])}")
     names = tuple(variable.id for variable in model.variables)
     multiple_certified = bool(alternatives and alternatives.get("status") == "multiple"
                               and alternatives.get("certified"))
     story.append(GeometryFigure(
         geometry, primal, integer, variable_names=names, multiple_certified=multiple_certified
     ))
-    add_line(story, st, "Legenda: roxo = regiao e otimo continuo; amarelo = curvas de nivel "
-             "e fronteira otima quando certificada; verde = solucao inteira; ciano = restricoes; "
+    add_line(story, st, "Legenda: roxo = regiao e ótimo continuo; amarelo = curvas de nivel "
+             "e fronteira otima quando certificada; verde = solução inteira; ciano = restricoes; "
              "cinza = malha inteira.", "small")
     if not geometry.get("bounded"):
         add_line(story, st, "A regiao e ilimitada. O desenho mostra somente a parte recortada "
@@ -291,11 +302,11 @@ def add_geometry(story, st, geometry, primal, integer, alternatives, model):
         add_line(story, st, "A malha inteira foi amostrada. Pontos omitidos podem ser viaveis; "
                  "a amostra nao comprova otimalidade.", "note")
     if lattice.get("mode") == "forced_all":
-        add_line(story, st, "A malha corresponde ao cenario hipotetico com todas as variaveis inteiras.", "small")
+        add_line(story, st, "A malha corresponde ao cenario hipotetico com todas as variáveis inteiras.", "small")
 
 
 def add_dual(story, st, data, limit):
-    section(story, st, "5. Problema dual e verificacao")
+    section(story, st, "5. Problema dual e verificação")
     add_status(story, st, data)
     add_line(story, st, f"Z primal = {fmt(data.get('primal_objective'))} | "
              f"Z dual = {fmt(data.get('dual_objective'))} | "
@@ -312,18 +323,18 @@ def add_dual(story, st, data, limit):
             rows.append([item["id"], expression(item["coefficients"], variables),
                          item["operator"], fmt(item["rhs"])])
         if rows:
-            story.append(make_table(["Restricao dual", "Membro esquerdo", "Relacao", "Limite"],
+            story.append(make_table(["Restrição dual", "Membro esquerdo", "Relação", "Limite"],
                                     rows, st, widths=[105, 425, 70, 75]))
     dual = data.get("dual")
     if dual:
         add_values(story, st, dual.get("variables"))
-        tableaux(story, st, dual, limit, "Historico tabular do dual")
+        tableaux(story, st, dual, limit, "Histórico tabular do dual")
 
 
 def add_alternatives(story, st, data):
-    section(story, st, "6. Diagnostico de otimos alternativos")
+    section(story, st, "6. Diagnóstico de ótimos alternativos")
     add_status(story, st, data)
-    add_line(story, st, "Certificacao: " + (
+    add_line(story, st, "Certificação: " + (
         "Sim" if data.get("certified") else "Nao. O resultado e inconclusivo."
     ), "note")
     add_line(story, st, f"Valor objetivo: {fmt(data.get('objective_value'))} | "
@@ -332,11 +343,11 @@ def add_alternatives(story, st, data):
         add_line(story, st, "Ponto de referencia: " +
                  ", ".join(f"{name}={fmt(value)}" for name, value in data["reference"].items()))
     if data.get("alternative"):
-        add_line(story, st, "Segundo ponto otimo certificado: " +
+        add_line(story, st, "Segundo ponto ótimo certificado: " +
                  ", ".join(f"{name}={fmt(value)}" for name, value in data["alternative"].items()))
     if data.get("status") == "multiple":
         add_line(story, st, "Duas solucoes distintas, viaveis e com o mesmo valor objetivo "
-                 "comprovam a multiplicidade do otimo.", "small")
+                 "comprovam a multiplicidade do ótimo.", "small")
 
 
 def decorate(canvas, document):
@@ -365,12 +376,12 @@ def build_report_pdf(payload):
     story = []
     story.append(Paragraph("PIVONAUTA", st["label"]))
     story.append(Spacer(1, 12))
-    story.append(Paragraph("Relatorio tecnico de otimizacao", st["title"]))
+    story.append(Paragraph("Relatório técnico de otimizacao", st["title"]))
     story.append(p(f"Modelo: {payload['model'].name}", st["body"]))
     story.append(p(f"Gerado em UTC: {payload['generated_at']}", st["small"]))
     story.append(HRFlowable(width="100%", color=PURPLE, thickness=1.5, spaceAfter=16))
     primal = payload["primal"]
-    add_line(story, st, "Sumario executivo")
+    add_line(story, st, "Sumário executivo")
     add_line(story, st, f"Simplex: {STATUS.get(primal['status'], primal['status'])}. "
              f"Valor objetivo: {fmt(primal['objective_value'])}. "
              f"Pivoteamentos: {primal['pivot_count']}.")
@@ -382,7 +393,7 @@ def build_report_pdf(payload):
                  STATUS.get(integer.get("status", "not_certified"), integer.get("status", "not_certified")) +
                  f". Objetivo: {fmt(integer.get('objective_value'))}.")
     if payload["notices"]:
-        story.append(Paragraph("Avisos de certificacao e escopo", st["subsection"]))
+        story.append(Paragraph("Avisos de certificação e escopo", st["subsection"]))
         for notice in payload["notices"]:
             add_line(story, st, notice, "note")
     if "model" in selected:
@@ -401,6 +412,6 @@ def build_report_pdf(payload):
     story.append(Spacer(1, 12))
     story.append(HRFlowable(width="100%", thickness=.8, color=LINE))
     add_line(story, st, "Relatorio gerado por algoritmos proprios de Simplex e Branch and Bound, "
-             "em Python puro. As informacoes nao certificadas sao identificadas explicitamente.", "small")
+             "em Python puro. As informacoes não certificadas sao identificadas explicitamente.", "small")
     document.build(story, onFirstPage=decorate, onLaterPages=decorate)
     return output.getvalue()

@@ -51,12 +51,12 @@ def test_pdf_complete_wyndor_contains_formula_solutions_and_dual():
     response = client.post("/api/v1/reports/pdf", json=payload())
     text = extract_pdf(response)
     assert "Avaliacao da otimizacao" in text
-    assert "Funcao objetivo" in text
+    assert "Função objetivo" in text
     assert "36" in text
-    assert "Historico tabular primal" in text
+    assert "Histórico tabular primal" in text
     assert "Problema dual" in text
-    assert "Representacao grafica" in text
-    assert "Diagnostico de otimos alternativos" in text
+    assert "Representação gráfica" in text
+    assert "Diagnóstico de ótimos alternativos" in text
 
 
 def test_pdf_sections_are_respected():
@@ -64,9 +64,9 @@ def test_pdf_sections_are_respected():
         "sections": ["model", "simplex"], "max_tableaux": 1,
     }))
     text = extract_pdf(response)
-    assert "Formulacao do problema" in text
-    assert "Historico tabular primal" in text
-    assert "Representacao grafica" not in text
+    assert "Formulação do problema" in text
+    assert "Histórico tabular primal" in text
+    assert "Representação gráfica" not in text
     assert "Problema dual" not in text
 
 
@@ -74,8 +74,8 @@ def test_pdf_non_2d_discloses_graph_limit_without_failure():
     response = client.post("/api/v1/reports/pdf", json=payload(
         variables=3, options={"sections": ["model", "geometry"], "max_tableaux": 2}))
     text = extract_pdf(response)
-    assert "Representacao grafica" in text
-    assert "nao aplicavel" in text.lower() or "Nao aplicavel" in text
+    assert "Representação gráfica" in text
+    assert "não aplicável" in text.lower() or "Não aplicável" in text
     assert "exatamente duas variaveis" in text
 
 
@@ -87,9 +87,9 @@ def test_pdf_integer_section_certifies_optimum_when_bnb_finishes():
         "max_tableaux": 2,
     }))
     text = extract_pdf(response)
-    assert "Programacao inteira" in text
-    assert "Otimo inteiro certificado" in text
-    assert "Arvore de ramificacao" in text
+    assert "Programação inteira" in text
+    assert "Ótimo inteiro certificado" in text
+    assert "Árvore de ramificação" in text
     assert "Todas as variaveis convertidas" in text
 
 
@@ -114,5 +114,5 @@ def test_pdf_infeasible_problem_does_not_invent_optimum():
     ]
     response = client.post("/api/v1/reports/pdf", json=data)
     text = extract_pdf(response)
-    assert "Inviavel" in text
-    assert "Otimo certificado" not in text
+    assert "Inviável" in text
+    assert "Ótimo certificado" not in text
