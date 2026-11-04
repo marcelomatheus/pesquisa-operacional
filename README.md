@@ -94,7 +94,13 @@ pytest -q
 
 ### Funcionalidades ainda em desenvolvimento
 
-Gráficos dinâmicos da região viável, análise tabular dual e diagnóstico de ótimos múltiplos ainda não utilizam o motor matemático e por isso são apresentados como **pendentes**, sem valores inventados. O relatório atual exporta um TXT baseado nos tableaux calculados; a exportação PDF virá em etapa posterior.
+As telas de **geometria dinâmica**, **modelo dual tabular** e **ótimos múltiplos** agora consultam três endpoints próprios em Python puro. O frontend distingue cálculos certificados de resultados inconclusivos e deixa claro que polígonos de regiões ilimitadas são apenas recortes da janela de visualização. O relatório atual exporta um TXT baseado nos tableaux calculados; a exportação PDF virá em etapa posterior.
 
 Os exemplos em `src/data.js` ainda contêm valores históricos de demonstração, mas estes não são usados nas telas de resultado integradas. Os cálculos são sempre obtidos do backend.
 
+
+### Endpoints de análise
+
+- `POST /api/v1/solves/dual`: modelo e tableaux duais, dualidade forte e complementaridade.
+- `POST /api/v1/solves/alternatives`: evidência de outros pontos ótimos ou unicidade.
+- `POST /api/v1/geometry`: linhas, vértices, polígono de viewport e caráter limitado/ilimitado.

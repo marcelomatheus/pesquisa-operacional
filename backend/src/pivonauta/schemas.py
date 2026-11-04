@@ -89,3 +89,14 @@ class SolveRequest(ModelRequest):
 
 class IntegerRequest(ModelRequest):
     options: IntegerOptions = Field(default_factory=IntegerOptions)
+
+
+class AnalysisOptions(StrictModel):
+    max_bases: int = Field(default=200, ge=1, le=1000)
+    max_iterations: int = Field(default=500, ge=1, le=2000)
+    time_limit: float = Field(default=3.0, gt=0, le=30)
+    tolerance: float = Field(default=1e-8, gt=0, le=1e-4)
+
+
+class AnalysisRequest(ModelRequest):
+    options: AnalysisOptions = Field(default_factory=AnalysisOptions)

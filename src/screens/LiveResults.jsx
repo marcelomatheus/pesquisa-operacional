@@ -171,20 +171,6 @@ export function LiveInteger({ result, task, onStart }) {
   </div>;
 }
 
-export function PendingAnalysis({ area }) {
-  const navigate = useNavigate();
-  const config = {
-    graph: ['Região viável', 'Geometria dinâmica', 'O gráfico do protótipo é ilustrativo e não representa a formulação executada. A geração de primitivas geométricas reais será implementada na próxima fase.', BarChart3],
-    dual: ['Modelo dual', 'Dualidade', 'A construção e resolução tabular do problema dual ainda não está integrada ao motor. Nenhum valor dual demonstrativo será apresentado como resultado.', Sigma],
-    analysis: ['Diagnósticos especiais', 'Casos especiais', 'Os diagnósticos de degenerescência e ótimos múltiplos ainda não estão certificados; somente o status retornado pelo Simplex está disponível.', Activity],
-  }[area];
-  if (!config) return null;
-  return <div className="page result-page">
-    <PageHeading title={config[0]} label={config[1]} description="Funcionalidade pendente de implementação matemática." />
-    <Note title="Análise ainda não disponível" description={config[2]} action={<button className="button button--primary" onClick={() => navigate('/results/simplex')}>Consultar tableaux reais <ArrowRight size={16} /></button>} />
-  </div>;
-}
-
 export function LiveReport({ model, result, integerTask }) {
   const download = () => {
     const lines = [

@@ -42,7 +42,7 @@ export function Dashboard({ model, result, integerTask, onNewModel }) {
         <header className="surface-header"><div><span>PRÓXIMAS LEITURAS</span><h2>Análises disponíveis</h2></div><Target size={18} /></header>
         <button onClick={() => navigate('/results/simplex')}><span className="analysis-index__code">01</span><span><strong>Simplex tabular</strong><small>Tableaux e prova algébrica</small></span><Table2 size={17} /></button>
         <button onClick={() => navigate('/results/integer')}><span className="analysis-index__code">02</span><span><strong>Branch and Bound</strong><small>Busca inteira com nós reais</small></span><GitBranch size={17} /></button>
-        <button onClick={() => navigate('/results/graph')}><span className="analysis-index__code">03</span><span><strong>Plano gráfico</strong><small>Integração matemática pendente</small></span><BarChart3 size={17} /></button>
+        <button onClick={() => navigate('/results/graph')}><span className="analysis-index__code">03</span><span><strong>Plano gráfico</strong><small>Região viável calculada</small></span><BarChart3 size={17} /></button>
         <div className="analysis-index__note"><span>Integridade</span><p>Os resultados são invalidados automaticamente quando a formulação matemática muda.</p></div>
       </aside>
     </section>

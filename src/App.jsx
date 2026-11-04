@@ -8,8 +8,9 @@ import { Help } from './screens/Help';
 import { Landing } from './screens/Landing';
 import { Library } from './screens/Library';
 import { Review } from './screens/Review';
-import { LiveInteger, LiveReport, LiveSimplex, LiveSummary, PendingAnalysis } from './screens/LiveResults';
+import { LiveInteger, LiveReport, LiveSimplex, LiveSummary } from './screens/LiveResults';
 import { modelFingerprint, solveInteger, solveModel } from './services/solverApi';
+import { AlternativesAnalysis, DualAnalysis, GeometryAnalysis } from './screens/MathAnalysis';
 
 function cloneModel(model) {
   return JSON.parse(JSON.stringify(model));
@@ -207,10 +208,10 @@ export default function App() {
         <Route path="/review" element={<Review model={model} solve={solve} solving={solving} solveError={solveError} />} />
         <Route path="/results/summary" element={<LiveSummary model={model} result={result} integerTask={currentIntegerTask} />} />
         <Route path="/results/simplex" element={<LiveSimplex result={result} />} />
-        <Route path="/results/graph" element={<PendingAnalysis area="graph" />} />
+        <Route path="/results/graph" element={<GeometryAnalysis model={model} />} />
         <Route path="/results/integer" element={<LiveInteger result={result} task={currentIntegerTask} onStart={calculateInteger} />} />
-        <Route path="/results/dual" element={<PendingAnalysis area="dual" />} />
-        <Route path="/results/analysis" element={<PendingAnalysis area="analysis" />} />
+        <Route path="/results/dual" element={<DualAnalysis model={model} />} />
+        <Route path="/results/analysis" element={<AlternativesAnalysis model={model} />} />
         <Route path="/results/report" element={<LiveReport model={model} result={result} integerTask={currentIntegerTask} />} />
         <Route path="/help" element={<Help />} />
         <Route path="*" element={<Navigate to="/" replace />} />

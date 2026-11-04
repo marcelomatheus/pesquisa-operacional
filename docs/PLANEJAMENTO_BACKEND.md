@@ -513,3 +513,19 @@ Sempre que possível, apresente comparações técnicas e justifique suas escolh
 **Critério principal de sucesso:** entregar um plano suficientemente detalhado para que outro engenheiro consiga implementar o backend de forma incremental, sem precisar redefinir a arquitetura, os contratos principais ou as regras matemáticas.
 
 A implementação foi **explicitamente autorizada em 04/11/2026**. Comece por uma fundação executável, avance para o motor matemático próprio e abra um PR revisável; não faça merge automático.
+---
+
+## Registro de evolução — 04/11/2026 (fase de análises matemáticas)
+
+- O Simplex tabular de duas fases e o Branch and Bound permanecem implementados
+  manualmente em Python puro, sem chamadas a solvers externos em execução.
+- O frontend foi conectado à API em uma etapa anterior.
+- A fase atual introduz `duality.py` (modelo dual e resolução tabular),
+  `alternatives.py` (certificação de soluções ótimas alternativas) e
+  `geometry.py` (região viável calculada para duas variáveis).
+- Endpoints previstos/implementados: `/api/v1/solves/dual`,
+  `/api/v1/solves/alternatives`, `/api/v1/geometry`.
+- Casos especiais que não sejam matematicamente certificados não devem
+  aparecer no frontend como se fossem resultados conclusivos.
+- Próximos incrementos: relatório PDF completo e testes E2E; auditoria de
+  limites computacionais e robustez numérica antes da entrega final.
