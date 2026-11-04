@@ -124,3 +124,15 @@ Os exemplos em `src/data.js` ainda contêm valores históricos de demonstração
 - `POST /api/v1/solves/dual`: modelo e tableaux duais, dualidade forte e complementaridade.
 - `POST /api/v1/solves/alternatives`: evidência de outros pontos ótimos ou unicidade.
 - `POST /api/v1/geometry`: linhas, vértices, polígono de viewport e caráter limitado/ilimitado.
+
+
+## PR #5 — Inspector, console e tableaux pedagógicos
+
+O Inspector agora permite inspecionar e editar variáveis e restrições individuais, consultar sua atividade/folga após a resolução, e examinar células de tableaux e nós do Branch and Bound. As seleções são identificadas por tipo e ID, e não por textos genéricos.
+
+O console recebe eventos estruturados a partir das respostas matemáticas reais, com pesquisa, filtros por método e severidade, detalhes e navegação para os tableaux correspondentes. Eventos de execuções anteriores podem ser reconstruídos a partir do histórico local do IndexedDB. **Os eventos são disponibilizados após a resposta HTTP e não em streaming durante o processamento.**
+
+O componente de visualização tabular é compartilhado entre o Simplex primal e o dual. Ele apresenta a base, os custos reduzidos, o teste da razão e as operações elementares de linha. A tela de revisão consulta `POST /api/v1/models/standard-form` para exibir a transformação real dos limites, variáveis livres, folgas e artificiais.
+
+Consulte [Revisão de arquitetura — PR #5](docs/REVISAO_ARQUITETURA_PR5.md) para limites e decisões de design.
+
