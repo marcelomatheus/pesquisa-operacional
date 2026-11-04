@@ -96,7 +96,12 @@ export function analyzeAlternatives(model, options) {
 }
 
 export function calculateGeometry(model, options) {
-  return request('/geometry', { model: normalizeModel(model) }, options);
+  const normalized = normalizeModel(model);
+  const forceAll = !normalized.variables.some(variable => variable.domain === 'integer');
+  return request('/geometry', {
+    model: normalized,
+    options: { show_integer_lattice: true, force_all_integer: forceAll, max_integer_points: 300 },
+  }, options);
 }
 
 export function displayNumber(value, digits = 4) {
