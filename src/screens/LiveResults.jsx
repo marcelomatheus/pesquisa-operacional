@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { displayNumber, SOLVE_STATUSES } from '../services/solverApi';
 import { TableauViewer } from '../components/TableauViewer';
+import { BranchTree } from '../components/BranchTree';
 
 function PageHeading({ title, label, description, action }) {
   const navigate = useNavigate();
@@ -81,7 +82,7 @@ export function LiveSimplex({ result, setSelectedEntity }) {
   </div>;
 }
 
-export function LiveInteger({ result, task, onStart, setSelectedEntity }) {
+export function LiveInteger({ model, result, task, onStart, setSelectedEntity }) {
   const [tab, setTab] = useState('tree');
   useEffect(() => {
     if (result?.status === 'optimal' && !task && onStart) onStart();
@@ -105,15 +106,7 @@ export function LiveInteger({ result, task, onStart, setSelectedEntity }) {
           <button className={tab === 'tree' ? 'is-active' : ''} onClick={() => setTab('tree')}>Nós reais da busca</button>
           <button className={tab === 'round' ? 'is-active' : ''} onClick={() => setTab('round')}>Arredondamento verificado</button>
         </div>
-        {tab === 'tree' ? <section className="panel" style={{ padding: 24 }}>
-          <div className="panel__header"><h2>Árvore de ramificações</h2><span>{data.nodes.length} nós registrados</span></div>
-          <div style={{ maxHeight: 560, overflow: 'auto' }}>
-            {data.nodes.map(node => <button type="button" key={node.id} className="pr5-branch-node" onClick={() => setSelectedEntity?.({ type: 'branch_node', id: node.id })} style={{ borderBottom: '1px solid var(--border-color, #8884)', padding: '12px 0', paddingLeft: Math.min(node.depth * 22, 160) }}>
-              <span style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}><strong>{node.id} · {node.branch_constraint || 'Relaxação inicial'}</strong><span>{node.status}</span></span>
-              <small>Relaxação: {node.relaxation_status} · Z = {displayNumber(node.relaxation_objective)} · {node.pivot_count} pivôs</small>
-            </button>)}
-          </div>
-        </section> : <section className="panel" style={{ padding: 24 }}>
+        {tab === 'tree' ? <BranchTree model={model} data={data} onInspect={setSelectedEntity} /> : <section className="panel" style={{ padding: 24 }}>
           <div className="panel__header"><h2>Candidatos vizinhos</h2></div>
           <p>Arredondamento não é prova de ótimo inteiro. Cada candidato foi testado contra as restrições.</p>
           <div className="candidate-list">{data.rounding_candidates.map((candidate, index) => <div key={index}>
