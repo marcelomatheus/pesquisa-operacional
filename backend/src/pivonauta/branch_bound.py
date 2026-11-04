@@ -22,6 +22,7 @@ class BranchNode:
     relaxation_variables: dict[str, float] | None
     pivot_count: int
     children: list[str]
+    branch_decision: dict | None = None
 
 
 @dataclass(slots=True)
@@ -86,8 +87,8 @@ def solve_branch_bound(model: LinearProgram, *, max_nodes: int = 200,
     if not integer_indices:
         raise ValueError("At least one integer variable is required")
     started = monotonic()
-    pending: list[tuple[str, str | None, int, LinearProgram, str | None]] = [
-        ("P0", None, 0, model, None)
+    pending: list[tuple[str, str | None, int, LinearProgram, str | None, dict | None]] = [
+        ("P0", None, 0, model, None, None)
     ]
     nodes: list[BranchNode] = []
     by_id: dict[str, BranchNode] = {}
@@ -103,12 +104,12 @@ def solve_branch_bound(model: LinearProgram, *, max_nodes: int = 200,
         if remaining <= 0:
             termination = "time_limit"
             break
-        node_id, parent, depth, local_model, branch_label = pending.pop()
+        node_id, parent, depth, local_model, branch_label, branch_decision = pending.pop()
         lp = solve_simplex(local_model, max_iterations=max_iterations,
                            time_limit=remaining, tolerance=1e-9,
                            include_trace=False)
         node = BranchNode(node_id, parent, depth, branch_label, "processing", lp.status,
-                          lp.objective_value, lp.variables, lp.pivot_count, [])
+                          lp.objective_value, lp.variables, lp.pivot_count, [], branch_decision)
         nodes.append(node)
         by_id[node_id] = node
         if parent is not None:
@@ -161,9 +162,11 @@ def solve_branch_bound(model: LinearProgram, *, max_nodes: int = 200,
         var_name = model.variables[branch_index].id
         # LIFO DFS: left branch visited before right.
         pending.append((f"{node_id}.R", node_id, depth + 1, right,
-                        f"{var_name} >= {right_rhs}"))
+                        f"{var_name} >= {right_rhs}",
+                        {"variable_id": var_name, "operator": "ge", "rhs": float(right_rhs)}))
         pending.append((f"{node_id}.L", node_id, depth + 1, left,
-                        f"{var_name} <= {left_rhs}"))
+                        f"{var_name} <= {left_rhs}",
+                        {"variable_id": var_name, "operator": "le", "rhs": float(left_rhs)}))
 
     status = termination or ("optimal" if incumbent is not None else "infeasible")
     # If the tree wasn't exhausted, a feasible incumbent is NOT proven optimal.

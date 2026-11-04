@@ -9,6 +9,7 @@ import {
   solveDual, SOLVE_STATUSES,
 } from '../services/solverApi';
 import { TableauViewer } from '../components/TableauViewer';
+import { OptimizationPlot } from '../components/OptimizationPlot';
 
 function AnalysisHeader({ title, eyebrow, description, icon: Icon }) {
   const navigate = useNavigate();
@@ -128,49 +129,13 @@ export function AlternativesAnalysis({ model }) {
   </div>;
 }
 
-const W = 620;
-const H = 440;
-const PAD = 51;
-
-function RegionPlot({ geometry, layers }) {
-  const { viewport } = geometry;
-  const xRange = viewport.x_max - viewport.x_min || 1;
-  const yRange = viewport.y_max - viewport.y_min || 1;
-  const x = value => PAD + (value - viewport.x_min) / xRange * (W - PAD * 2);
-  const y = value => H - PAD - (value - viewport.y_min) / yRange * (H - PAD * 2);
-  const coordinates = points => points.map(([px, py]) => `${x(px)},${y(py)}`).join(' ');
-  const showOriginX = viewport.x_min <= 0 && viewport.x_max >= 0;
-  const showOriginY = viewport.y_min <= 0 && viewport.y_max >= 0;
-  const ticks = Array.from({ length: 6 }, (_, i) => i / 5);
-  return <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Região ${geometry.region_type} calculada a partir das restrições`} style={{ width: '100%', maxHeight: 560 }}>
-    <rect x={PAD} y={PAD} width={W - PAD * 2} height={H - PAD * 2} fill="transparent" stroke="currentColor" opacity={0.12} />
-    {ticks.map((t, i) => <g key={i} opacity={0.14} stroke="currentColor">
-      <line x1={PAD + t * (W - 2 * PAD)} x2={PAD + t * (W - 2 * PAD)} y1={PAD} y2={H - PAD} />
-      <line y1={PAD + t * (H - 2 * PAD)} y2={PAD + t * (H - 2 * PAD)} x1={PAD} x2={W - PAD} />
-    </g>)}
-    {layers.region && geometry.polygon.length >= 3 && geometry.dimension === 2 && <polygon points={coordinates(geometry.polygon)} fill="#8b5cf6" fillOpacity={0.18} stroke="#8b5cf6" strokeWidth={2} />}
-    {layers.region && geometry.polygon.length === 2 && <polyline points={coordinates(geometry.polygon)} fill="none" stroke="#a78bfa" strokeWidth={4} />}
-    {layers.region && geometry.dimension === 0 && geometry.polygon.length > 0 && <circle cx={x(geometry.polygon[0][0])} cy={y(geometry.polygon[0][1])} r={5} fill="#a78bfa" />}
-    {layers.constraints && geometry.lines.map((line, i) => line.segment?.length === 2 && <g key={line.id || i}>
-      <line x1={x(line.segment[0][0])} y1={y(line.segment[0][1])} x2={x(line.segment[1][0])} y2={y(line.segment[1][1])} stroke={line.origin === 'constraint' ? '#22d3ee' : '#94a3b8'} strokeWidth={line.operator === 'eq' ? 2.3 : 1.6} strokeDasharray={line.operator === 'eq' ? '5 4' : undefined} />
-    </g>)}
-    {showOriginX && <line x1={x(0)} x2={x(0)} y1={PAD} y2={H-PAD} stroke="currentColor" opacity={0.55} strokeWidth={1.3} />}
-    {showOriginY && <line x1={PAD} x2={W-PAD} y1={y(0)} y2={y(0)} stroke="currentColor" opacity={0.55} strokeWidth={1.3} />}
-    {layers.vertices && geometry.vertices.map(([vx, vy], i) => <circle key={i} cx={x(vx)} cy={y(vy)} r={4} fill="#22d3ee" stroke="#0f172a" strokeWidth={1.5} />)}
-    {layers.optimum && geometry.optimal_point && <g><circle cx={x(geometry.optimal_point[0])} cy={y(geometry.optimal_point[1])} r={8} fill="#a78bfa" stroke="#fafafa" strokeWidth={2} />
-      <text x={Math.min(W-105, x(geometry.optimal_point[0])+12)} y={Math.max(PAD+12, y(geometry.optimal_point[1])-12)} fill="currentColor" fontSize={12}>Z = {displayNumber(geometry.optimal_value)}</text></g>}
-    {ticks.map((t, i) => <g key={`label-${i}`} fill="currentColor" fontSize={11} opacity={0.75}>
-      <text x={PAD+t*(W-PAD*2)} y={H-PAD+18} textAnchor="middle">{displayNumber(viewport.x_min+t*xRange, 2)}</text>
-      <text x={PAD-8} y={H-PAD-t*(H-PAD*2)+4} textAnchor="end">{displayNumber(viewport.y_min+t*yRange, 2)}</text>
-    </g>)}
-    <text x={W-PAD} y={H-9} fontSize={13} textAnchor="end" fill="currentColor">x₁</text>
-    <text x={PAD-24} y={PAD-17} fontSize={13} fill="currentColor">x₂</text>
-  </svg>;
-}
-
-export function GeometryAnalysis({ model }) {
+export function GeometryAnalysis({ model, result, integerTask, onStartInteger }) {
   const [state, retry] = useRemoteAnalysis(model, calculateGeometry, model.variables.length === 2);
-  const [layers, setLayers] = useState({ constraints: true, region: true, vertices: true, optimum: true });
+  const [alternativesState] = useRemoteAnalysis(model, analyzeAlternatives, model.variables.length === 2);
+  const [layers, setLayers] = useState({
+    constraints: true, region: true, vertices: true, optimum: true,
+    levels: true, lattice: true, alternatives: true, candidates: true, integer: true,
+  });
   const toggle = key => setLayers(old => ({ ...old, [key]: !old[key] }));
   const geometry = state.data;
   if (model.variables.length !== 2) return <div className="page result-page graph-page">
@@ -183,15 +148,32 @@ export function GeometryAnalysis({ model }) {
   </div>;
   return <div className="page result-page graph-page">
     <AnalysisHeader title="Região viável" eyebrow="Geometria · cálculo real" icon={BarChart3}
-      description="Interseções, fronteiras e visualização recortada das restrições do modelo." />
+      description="Restrições, curvas de nível, pontos inteiros e ótimos obtidos por cálculo matemático real." />
     <AsyncState state={state} onRetry={retry} />
     {geometry && <section className="graph-workbench">
       <article className="panel graph-main" style={{ minHeight: 430, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        {geometry.status === 'feasible' ? <RegionPlot geometry={geometry} layers={layers} /> : <div style={{ padding: 30 }}><h2>{geometry.status === 'infeasible' ? 'Região vazia' : 'Representação não certificada'}</h2><p>{geometry.message}</p></div>}
+        {geometry.status === 'feasible' ? <OptimizationPlot geometry={geometry} model={model} layers={layers} integerTask={integerTask} alternatives={alternativesState.data} /> : <div style={{ padding: 30 }}><h2>{geometry.status === 'infeasible' ? 'Região vazia' : 'Representação não certificada'}</h2><p>{geometry.message}</p></div>}
       </article>
       <aside className="panel layer-panel">
         <div className="panel__header"><div><span className="panel-kicker">CAMADAS</span><h2>Composição visual</h2></div><Target size={19} /></div>
-        {[['constraints', 'Restrições'], ['region', 'Região viável'], ['vertices', 'Vértices'], ['optimum', 'Ótimo contínuo']].map(([key, title]) => <button key={key} className="layer-row" onClick={() => toggle(key)} aria-pressed={layers[key]}><span className="layer-swatch tone-violet" /><strong>{title}</strong><i className={layers[key] ? 'is-on' : ''}><b /></i></button>)}
+        {[['constraints', 'Restrições'], ['region', 'Região viável'], ['levels', 'Curvas de nível'], ['vertices', 'Vértices'], ['lattice', 'Pontos inteiros viáveis'], ['optimum', 'Ótimo contínuo'], ['integer', 'Ótimo inteiro / incumbente'], ['candidates', 'Arredondamentos'], ['alternatives', 'Aresta de ótimos múltiplos']].map(([key, title]) => <button key={key} className="layer-row" onClick={() => toggle(key)} aria-pressed={layers[key]}><span className="layer-swatch tone-violet" /><strong>{title}</strong><i className={layers[key] ? 'is-on' : ''}><b /></i></button>)}
+        <section className="pr6-geometry-integer">
+          <strong>Solução inteira</strong>
+          {integerTask?.state === 'success' ? <p>
+            {integerTask.data.status === 'optimal' ? 'Ótimo inteiro certificado' : 'Incumbente sem certificado de otimalidade'}
+            {' · '}Z = {displayNumber(integerTask.data.objective_value)}
+          </p> : integerTask?.state === 'loading' ? <p>Explorando a árvore de busca…</p>
+            : integerTask?.state === 'error' ? <p role="alert">{integerTask.error}</p>
+            : <p>Calcule o Branch and Bound para mostrar a solução inteira.</p>}
+          <button className="button button--secondary" disabled={!result || result.status !== 'optimal' || integerTask?.state === 'loading'} onClick={onStartInteger}>
+            {integerTask?.state === 'loading' ? 'Calculando…' : integerTask?.state === 'success' ? 'Reexecutar busca inteira' : 'Calcular solução inteira'}
+          </button>
+          {(!result || result.status !== 'optimal') && <small>Execute o Simplex no modelo antes de iniciar a busca inteira.</small>}
+          {geometry.integer_lattice?.mode === 'forced_all' && <small>A malha representa o cenário hipotético em que ambas as variáveis são inteiras.</small>}
+          {geometry.integer_lattice?.mode === 'mixed_or_continuous' && <small>Para modelos mistos, a malha inteira isolada não representa o domínio contínuo.</small>}
+          {alternativesState.data?.status === 'multiple' && alternativesState.data.certified === true &&
+            <small>Ótimos alternativos certificados. A aresta destacada mostra um segmento da região ótima.</small>}
+        </section>
         <div className="coordinate-card">
           <small>ANÁLISE</small>
           <div><span>Tipo</span><strong>{geometry.region_type}</strong></div>

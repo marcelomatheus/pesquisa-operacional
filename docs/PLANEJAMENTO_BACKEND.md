@@ -550,3 +550,12 @@ A feature branch não deve ser mesclada antes da aprovação dos testes de front
 A integração pedagógica passa a ter Inspector contextual para variáveis, restrições, células de tableau e nós do Branch and Bound; console de eventos estruturados construídos a partir de resultados reais; uma única apresentação tabular reutilizada no primal e no dual; e endpoint de forma padrão que utiliza a função `standardize` do motor. Foram adicionados dados de operações elementares e custos reduzidos aos snapshots sem romper o contrato antigo.
 
 Os eventos do console não são transmitidos em tempo real: são derivados da resposta HTTP e reconstruídos do histórico local quando disponível. A arquitetura e as limitações estão descritas em `docs/REVISAO_ARQUITETURA_PR5.md`. A fase seguinte continua responsável por curvas de nível e árvore gráfica; o relatório PDF e os testes E2E ficam nas etapas seguintes.
+
+
+## Registro de evolução — PR #6 (04/11/2026)
+
+Foram implementadas sobreposições geométricas calculadas no backend (`level_lines`, `integer_lattice` e `optimal_face`) e visualizações interativas no frontend. O painel de geometria distingue a amostragem da malha, o incumbente não certificado e a aresta ótima condicionada à prova de múltiplas soluções.
+
+A árvore visual utiliza relações reais entre os nós do Branch and Bound e inclui a inspeção de tableaux da relaxação de cada nó por reconstrução de decisões estruturadas. Os testes cobrem níveis da função objetivo, viabilidade de pontos inteiros, reconstrução de ramificações e rotas de API.
+
+Pendências para os próximos PRs: relatório PDF completo, testes E2E, robustez numérica em escala e revisão do limite de restrições para visualização de tableaux de nós profundos. A revisão arquitetural está em `docs/REVISAO_ARQUITETURA_PR6.md`.

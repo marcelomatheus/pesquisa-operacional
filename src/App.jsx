@@ -284,8 +284,8 @@ export default function App() {
         <Route path="/review" element={<Review model={model} solve={solve} solving={solving} solveError={solveError} />} />
         <Route path="/results/summary" element={<LiveSummary model={model} result={result} integerTask={currentIntegerTask} />} />
         <Route path="/results/simplex" element={<LiveSimplex result={result} setSelectedEntity={setSelectedEntity} />} />
-        <Route path="/results/graph" element={<GeometryAnalysis model={model} />} />
-        <Route path="/results/integer" element={<LiveInteger result={result} task={currentIntegerTask} onStart={calculateInteger} setSelectedEntity={setSelectedEntity} />} />
+        <Route path="/results/graph" element={<GeometryAnalysis model={model} result={result} integerTask={currentIntegerTask} onStartInteger={calculateInteger} />} />
+        <Route path="/results/integer" element={<LiveInteger model={model} result={result} task={currentIntegerTask} onStart={calculateInteger} setSelectedEntity={setSelectedEntity} />} />
         <Route path="/results/dual" element={<DualAnalysis model={model} setSelectedEntity={setSelectedEntity} />} />
         <Route path="/results/analysis" element={<AlternativesAnalysis model={model} />} />
         <Route path="/results/report" element={<LiveReport model={model} result={result} integerTask={currentIntegerTask} />} />

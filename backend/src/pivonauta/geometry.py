@@ -10,6 +10,7 @@ from itertools import combinations
 from math import atan2, hypot, isfinite
 
 from .domain import InvalidModel, LinearProgram, Variable, is_feasible
+from .geometry_overlays import integer_lattice, objective_contours, optimal_face
 from .simplex import solve_simplex
 
 
@@ -26,6 +27,9 @@ class GeometryResult:
     optimal_point: list[float] | None
     optimal_value: float | None
     message: str
+    level_lines: list[dict] | None = None
+    optimal_face: list[list[float]] | None = None
+    integer_lattice: dict | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -151,7 +155,10 @@ def _dimension(points: list[tuple[float, float]], tol: float) -> int | None:
     return 1
 
 
-def build_geometry(model: LinearProgram, *, tolerance: float = 1e-8) -> GeometryResult:
+def build_geometry(model: LinearProgram, *, tolerance: float = 1e-8,
+                   show_integer_lattice: bool = True,
+                   force_all_integer: bool = False,
+                   max_integer_points: int = 300) -> GeometryResult:
     if len(model.variables) != 2:
         raise InvalidModel('Geometric view supports exactly two decision variables')
     lines = _boundaries(model)
@@ -218,7 +225,16 @@ def build_geometry(model: LinearProgram, *, tolerance: float = 1e-8) -> Geometry
     region_type = 'unbounded' if not bounded else {0: 'point', 1: 'segment', 2: 'polygon'}[clip_dim]
     result_lines = [{**line, 'segment': _viewport_segment(line, viewport, tolerance)}
                     for line in lines]
+    levels = objective_contours(model.objective, polygon, viewport, _viewport_segment,
+                                optimum.objective_value if optimum.status == 'optimal' else None,
+                                tolerance)
+    face = optimal_face(polygon, model.objective,
+                        optimum.objective_value if optimum.status == 'optimal' else None,
+                        tolerance)
+    lattice = (integer_lattice(model, viewport, max_integer_points, force_all_integer)
+               if show_integer_lattice else None)
     return GeometryResult('feasible', region_type, bounded, clip_dim, viewport,
                           [list(p) for p in polygon], [list(p) for p in vertices],
                           result_lines, opt_pt, optimum.objective_value,
-                          'Viewport polygon is clipped; boundedness is evaluated independently')
+                          'Viewport polygon is clipped; boundedness is evaluated independently',
+                          levels, face, lattice)

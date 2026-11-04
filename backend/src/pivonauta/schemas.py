@@ -100,3 +100,13 @@ class AnalysisOptions(StrictModel):
 
 class AnalysisRequest(ModelRequest):
     options: AnalysisOptions = Field(default_factory=AnalysisOptions)
+
+
+class GeometryOptions(StrictModel):
+    show_integer_lattice: bool = True
+    force_all_integer: bool = False
+    max_integer_points: int = Field(default=300, ge=1, le=500)
+
+
+class GeometryRequest(ModelRequest):
+    options: GeometryOptions = Field(default_factory=GeometryOptions)
