@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from . import __version__
 from .domain import InvalidModel
 from .branch_bound import solve_branch_bound
-from .schemas import AnalysisRequest, IntegerRequest, ModelRequest, SolveRequest
+from .schemas import AnalysisRequest, GeometryRequest, IntegerRequest, ModelRequest, SolveRequest
 from .duality import solve_dual
 from .alternatives import analyze_optima
 from .geometry import build_geometry
@@ -129,9 +129,9 @@ def analyze_alternative_optima(request: AnalysisRequest):
 
 
 @app.post("/api/v1/geometry")
-def calculate_geometry(request: ModelRequest):
+def calculate_geometry(request: GeometryRequest):
     model = request.model.to_domain()
-    return build_geometry(model).to_dict()
+    return build_geometry(model, **request.options.model_dump()).to_dict()
 
 
 @app.post("/api/v1/models/standard-form")
