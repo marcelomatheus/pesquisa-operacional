@@ -1,160 +1,147 @@
-# PivôNauta — desenvolvimento da v1.0
+# PivôNauta — Pesquisa Operacional, versão 1.0
 
-Protótipo acadêmico de uma aplicação de Pesquisa Operacional para modelagem e demonstração do método Simplex. A experiência cobre editor algébrico, prova tabular, região de viabilidade, solução inteira, Branch and Bound, modelo dual, casos especiais e relatório.
+O **PivôNauta** é um laboratório acadêmico para criar, validar, resolver, inspecionar, visualizar e documentar problemas de programação linear e inteira. Os algoritmos **Simplex tabular de duas fases e Branch and Bound são implementados manualmente em Python puro**, sem SciPy, NumPy ou solvers externos.
 
-## Novidade da versão 2.1
+## O que está implementado
 
-- Landing page pública com apresentação do sistema, jornada de análise e estrutura da equipe.
-- Visualização animada da região viável, curvas de nível, ponto ótimo e fluxo do tableau.
-- Entrada separada para o laboratório, preservando o shell fixo da aplicação.
-- Animações infinitas com alternativa estática para usuários que preferem movimento reduzido.
+- **Editor visual, algébrico e JSON:** até 10 variáveis, 30 restrições, limites individuais e domínios contínuos/inteiros ou mistos.
+- **Importação, exportação e biblioteca:** validação antes de aplicar alterações, rascunho local e modelos salvos no IndexedDB.
+- **Simplex:** fases I e II, tableaux auditáveis, pivôs, razão mínima, custos reduzidos e operações elementares.
+- **Branch and Bound:** nós, decisões de ramificação, podas, candidatos arredondados e inspeção da relaxação de um nó.
+- **Geometria:** região viável bidimensional, vértices, curvas de nível, ótimo contínuo, ótimo inteiro e múltiplos ótimos certificados.
+- **Dualidade e diagnósticos:** modelo dual, tableaux, dualidade forte, complementaridade e análise de soluções ótimas alternativas.
+- **Inspector e console:** propriedades contextuais e eventos matemáticos derivados das execuções.
+- **PDF acadêmico:** formulação, soluções, tableaux, árvore, gráfico vetorial, dual e diagnósticos, com indicação de resultados não certificados.
 
-## O que mudou na versão 2.0
+A interface não utiliza valores demonstrativos para declarar resultados matemáticos. A landing page conserva animações ilustrativas, separadas do solucionador.
 
-- Navegação única e fixa, sem barras duplicadas.
-- Console matemático fixo no rodapé da área de trabalho.
-- Inspetor funcional com seções recolhíveis e controles editáveis.
-- Nova direção visual baseada em uma bancada científica, com IBM Plex e superfícies contínuas.
-- Tela inicial ajustada integralmente ao viewport em desktop.
-- Troca imediata entre rotas, sempre iniciando no topo da nova página.
-- Criação de novo modelo, importação JSON e escolha de domínio funcionais.
-- Transformação para forma padrão, ampliação do gráfico e cópia do link funcionais.
+## Tecnologias
 
-## Como executar a aplicação completa
+| Camada | Tecnologias |
+|---|---|
+| Frontend | React, Vite, React Router, Framer Motion |
+| API | FastAPI e Pydantic |
+| Motor matemático | Python puro |
+| Relatórios | ReportLab, apenas para composição de documentos |
+| Persistência v1 | IndexedDB no navegador |
+| Publicação unificada | Docker Compose, Nginx e Uvicorn |
+| Qualidade | pytest, testes Node, Playwright, validação visual de PDFs |
 
-**Pré-requisitos:** Python 3.11+ e Node.js 20+. O motor matemático é implementado em Python puro; FastAPI e Uvicorn são dependências apenas da API.
+## Iniciar no ambiente de desenvolvimento
 
-Execute na raiz do projeto:
+Requisitos: Python 3.11+ e Node.js 20+.
 
 ```bash
 # Windows
 iniciar.bat
 
-# macOS/Linux
+# Linux/macOS
 ./iniciar.sh
 ```
 
-O script cria o ambiente Python em `backend/.venv`, instala dependências necessárias na primeira execução, inicia a API na porta `8000`, verifica `/api/v1/health/ready`, e então inicia o Vite em `http://localhost:4173`. Ctrl+C encerra os dois processos. Caso uma porta esteja ocupada, a inicialização é interrompida com um erro claro.
-
-**Inicialização manual**, caso prefira separar os servidores:
+O script cria o ambiente Python, instala as dependências necessárias, inicia a API em `127.0.0.1:8000` e o frontend em `http://localhost:4173`. Para iniciar manualmente, use dois terminais:
 
 ```bash
 cd backend
 python -m venv .venv
-# Ative .venv e instale:
+# Ative .venv de acordo com o sistema operacional
 pip install -e ".[dev]"
 uvicorn pivonauta.main:app --port 8000
 ```
 
-Em outro terminal, na raiz: `npm ci && npm run dev`.
-
-## Modelagem da v1 (PR #4)
-
-- Formato JSON versionado com `schema_version: 1`, `variables[]`, `objective[]` e `constraints[]`.
-- Até **10 variáveis** e **30 restrições**, com limites inferiores/superiores e domínio contínuo ou inteiro por variável.
-- Editor visual dinâmico, parser algébrico linear (`Max Z = 3x1 + 5x2`, `x1 + 2x2 <= 8`) e importador/exportador JSON.
-- Importação de modelos do contrato FastAPI, formato canônico e formato de exemplos legado.
-- Pré-visualização e validação antes de aplicar JSON/texto; modelo ativo fica intacto se a importação falhar.
-- IndexedDB: rascunho restaurável após atualizar, biblioteca de modelos locais e histórico breve de execuções. Os dados permanecem no navegador: **exporte JSON para fazer backup**.
-- Geometria é exibida somente para exatamente duas variáveis. Modelos com 1 ou 3–10 variáveis continuam resolvíveis pelos algoritmos, mas não recebem gráficos falsos.
-
-A arquitetura mantém Simplex de duas fases, Branch and Bound, dualidade e geometria implementados manualmente em **Python puro**.
-
-## Comandos de verificação
-
 ```bash
-npm test
-npm run build
-cd backend && pytest -q
-```
-
-## Jornada sugerida
-
-1. Abra **Biblioteca** e carregue um exemplo.
-2. Edite a função objetivo e as restrições.
-3. Revise e execute o modelo.
-4. Reproduza o Simplex passo a passo.
-5. Alterne as camadas do gráfico.
-6. Compare arredondamento e Branch and Bound.
-7. Explore o dual e os diagnósticos especiais.
-8. Monte e exporte o relatório-resumo.
-
-## API matemática e integração
-
-A partir desta etapa, o editor e as páginas de **resumo, Simplex tabular e Branch and Bound** utilizam resultados reais da API Python. O motor de Simplex de duas fases e a busca inteira são implementados manualmente em Python puro, sem NumPy ou SciPy.
-
-Em dois terminais, na raiz do repositório:
-
-```bash
-# Terminal 1 — API
-cd backend
-python -m venv .venv
-# Linux/macOS: source .venv/bin/activate
-# Windows: .venv\\Scripts\\activate
-pip install -e ".[dev]"
-uvicorn pivonauta.main:app --reload --port 8000
-```
-
-```bash
-# Terminal 2 — React
 npm ci
 npm run dev
 ```
 
-No desenvolvimento, Vite encaminha as requisições de `/api` para `http://127.0.0.1:8000`. Para ambientes separados, defina `VITE_API_URL` com a URL completa do prefixo `/api/v1` antes de executar o build.
+## Iniciar como aplicação integrada
 
-### Testes
+Com Docker Compose disponível, na raiz do repositório:
 
 ```bash
+docker compose up -d --build
+```
+
+Abra **http://localhost:8080**. O Nginx serve o frontend compilado e encaminha `/api/` ao serviço FastAPI na rede interna do Compose. Verifique:
+
+```bash
+python scripts/smoke_production.py
+```
+
+Para encerrar:
+
+```bash
+docker compose down
+```
+
+A porta HTTP padrão pode ser alterada com `PIVONAUTA_PORT`. Esta configuração é adequada a demonstrações e ambientes controlados. Para expor o sistema publicamente, configure HTTPS em um proxy ou plataforma segura, domínios e políticas operacionais.
+
+### Publicação em serviços separados
+
+Defina `VITE_API_URL=https://sua-api.example/api/v1` antes de compilar o React, e configure `PIVONAUTA_ALLOWED_ORIGINS=https://seu-frontend.example` no backend. São permitidas múltiplas origens separadas por vírgula; não utilize `*` indiscriminadamente.
+
+**Importante:** um build Vercel aprovado não prova que uma API Python está publicada. O deploy público de frontend e backend deve ser verificado na infraestrutura escolhida.
+
+## Validar a v1
+
+```bash
+npm ci
 npm test
 npm run build
+
 cd backend
+pip install -e ".[dev]"
 pytest -q
 ```
 
-### Funcionalidades ainda em desenvolvimento
+Testes em navegador exigem Chromium e Playwright:
 
-As telas de **geometria dinâmica**, **modelo dual tabular** e **ótimos múltiplos** agora consultam três endpoints próprios em Python puro. O frontend distingue cálculos certificados de resultados inconclusivos e deixa claro que polígonos de regiões ilimitadas são apenas recortes da janela de visualização. O relatório atual exporta um TXT baseado nos tableaux calculados; a exportação PDF virá em etapa posterior.
+```bash
+npm install --no-save --package-lock=false @playwright/test@1.56.1
+npx playwright install chromium
+python scripts/run_e2e.py
+```
 
-Os exemplos em `src/data.js` ainda contêm valores históricos de demonstração, mas estes não são usados nas telas de resultado integradas. Os cálculos são sempre obtidos do backend.
+A CI executa os testes de backend/frontend e também a suíte Playwright em viewport desktop e mobile, uma pré-verificação de PDFs renderizados e um smoke test em containers. Os artefatos das execuções ficam na aba [Actions](https://github.com/marcelomatheus/pesquisa-operacional/actions).
 
+Para gerar amostras visuais de PDF localmente, instale `pymupdf` e execute `python scripts/validate_pdf_visual.py`.
 
-### Endpoints de análise
+## Fluxo recomendado para o seminário
 
-- `POST /api/v1/solves/dual`: modelo e tableaux duais, dualidade forte e complementaridade.
-- `POST /api/v1/solves/alternatives`: evidência de outros pontos ótimos ou unicidade.
-- `POST /api/v1/geometry`: linhas, vértices, polígono de viewport e caráter limitado/ilimitado.
+1. Importe ou selecione o modelo **Wyndor**.
+2. Confirme `max Z = 3x1 + 5x2` e suas três restrições.
+3. Execute o Simplex e confira `x1 = 2`, `x2 = 6` e `Z = 36`.
+4. Inspecione tableaux, pivôs, razão mínima e o console.
+5. Abra o gráfico com curvas de nível e a região viável.
+6. Execute Branch and Bound e inspecione os nós.
+7. Compare o primal e o dual; consulte ótimos alternativos.
+8. Exporte e visualize o relatório PDF.
 
+O exemplo **Radioterapia** permite demonstrar a diferença entre soluções contínuas e inteiras: mínimo contínuo `5,25`, ótimo inteiro `5,30`.
 
-## PR #5 — Inspector, console e tableaux pedagógicos
+## Limitações e advertências da v1
 
-O Inspector agora permite inspecionar e editar variáveis e restrições individuais, consultar sua atividade/folga após a resolução, e examinar células de tableaux e nós do Branch and Bound. As seleções são identificadas por tipo e ID, e não por textos genéricos.
+- O gráfico matemático está disponível apenas para modelos com exatamente duas variáveis.
+- Os modelos e o histórico são armazenados **localmente no navegador**, sem conta ou sincronização. Exporte JSON como cópia de segurança.
+- O número de iterações, nós, tempo de execução e tamanho dos modelos é limitado para preservar recursos.
+- Em interrupções por limite, os candidatos inteiros não são apresentados como ótimos certificados.
+- A malha inteira pode ser amostrada, e isso é informado; não é prova de otimalidade.
+- Eventos do console são disponibilizados após a resposta HTTP, não via streaming.
+- Documentos PDF grandes podem conter muitas páginas quando vários tableaux são solicitados.
+- A v1 não inclui autenticação, multiusuário, banco SQL, solvers comerciais nem diagnóstico numérico formal para todos os problemas mal condicionados.
 
-O console recebe eventos estruturados a partir das respostas matemáticas reais, com pesquisa, filtros por método e severidade, detalhes e navegação para os tableaux correspondentes. Eventos de execuções anteriores podem ser reconstruídos a partir do histórico local do IndexedDB. **Os eventos são disponibilizados após a resposta HTTP e não em streaming durante o processamento.**
+## Organização
 
-O componente de visualização tabular é compartilhado entre o Simplex primal e o dual. Ele apresenta a base, os custos reduzidos, o teste da razão e as operações elementares de linha. A tela de revisão consulta `POST /api/v1/models/standard-form` para exibir a transformação real dos limites, variáveis livres, folgas e artificiais.
+```text
+backend/src/pivonauta/     Motor matemático, contratos HTTP e relatórios
+backend/tests/             Testes do backend
+src/screens/               Telas da aplicação
+src/components/            Inspector, console, tableaux e gráficos
+src/services/              Modelagem, persistência e integração da API
+tests/e2e/                 Testes com navegador real
+scripts/                   Execução local, validação E2E, PDF e smoke
+deploy/                    Nginx e Dockerfile do frontend compilado
+docs/                      Planejamento e revisões arquiteturais
+```
 
-Consulte [Revisão de arquitetura — PR #5](docs/REVISAO_ARQUITETURA_PR5.md) para limites e decisões de design.
-
-
-
-## PR #6 — Visualização matemática e árvore de busca
-
-A tela **Região viável** agora exibe curvas de nível calculadas em Python puro, pontos inteiros viáveis no plano, candidatos arredondados, ótimo contínuo, incumbente/ótimo inteiro e arestas de múltiplos ótimos somente quando certificados. Camadas são selecionáveis e pontos podem ser inspecionados por coordenadas. O gráfico permanece restrito a duas variáveis.
-
-Na tela **Solução inteira**, o Branch and Bound apresenta uma árvore com nós e conexões reais, estados de poda, zoom, navegação por ordem de exploração e painel de detalhes. Cada nó explorado pode ter sua relaxação tabular recalculada pela API, sem acrescentar bibliotecas de otimização.
-
-A malha inteira pode ser amostrada em regiões extensas; a interface avisa quando isso acontece. Os pontos da malha não são prova de ótimo. Se houver limite de tempo/nós, o incumbente é exibido como **não certificado**.
-
-O endpoint `POST /api/v1/geometry` recebe opções opcionais `show_integer_lattice`, `force_all_integer` e `max_integer_points`. Consulte `docs/REVISAO_ARQUITETURA_PR6.md` para as decisões de arquitetura, limites e riscos.
-
-
-## PR #7 — Relatório acadêmico em PDF
-
-A tela **Relatório** permite selecionar capítulos e gerar um PDF com formulação, solução pelo Simplex, histórico tabular, Branch and Bound, dualidade, geometria e diagnósticos certificados. O arquivo é criado pelo backend a partir de uma nova execução dos algoritmos próprios; os dados de resultados do navegador não são aceitos como prova matemática.
-
-O usuário pode escolher até 100 tableaux por algoritmo, o cenário de programação inteira (`declared` ou `all_integer`), pré-visualizar e baixar o documento. Quando a trilha tabular ultrapassa o limite escolhido, a amostragem é identificada. Gráficos bidimensionais não são criados para modelos com outra dimensão.
-
-A API expõe `POST /api/v1/reports/pdf`, recebendo `model` e `options`. O retorno é `application/pdf`. ReportLab é dependência apenas da camada de apresentação em PDF, sem interferir nos algoritmos matemáticos.
-
-A documentação arquitetural está em [PR #7: relatórios técnicos](docs/REVISAO_ARQUITETURA_PR7.md).
+Documentação adicional: `docs/PLANEJAMENTO_BACKEND.md`, `docs/REVISAO_ARQUITETURA_PR5.md`, `docs/REVISAO_ARQUITETURA_PR6.md`, `docs/REVISAO_ARQUITETURA_PR7.md` e `docs/VALIDACAO_V1.md`.
