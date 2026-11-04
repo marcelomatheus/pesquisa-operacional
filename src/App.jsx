@@ -47,7 +47,7 @@ export default function App() {
           const canonical = normalizeModelInput(stored, { preserveId: true });
           setModel(canonical);
           const saved = await getSavedModel(canonical.id);
-          if (!cancelled) setSavedSignature(saved ? JSON.stringify(canonical) : null);
+          if (!cancelled) setSavedSignature(saved ? JSON.stringify(normalizeModelInput(saved, { preserveId: true })) : null);
         }
       } catch (error) {
         if (!cancelled) setStorageWarning(error.message || 'Armazenamento local indisponível.');

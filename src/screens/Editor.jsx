@@ -69,12 +69,13 @@ export function Editor({ model, setModel, pushLog, setSelectedEntity }) {
   const updateConstraint = (id, patch) => change(m => ({ ...m, constraints: m.constraints.map(c => c.id === id ? { ...c, ...patch } : c) }));
   const resetValidation = () => setInvalidInputs({});
   const addConstraint = () => change(m => ({ ...m, constraints: [...m.constraints, {
-    id: `r${Date.now()}`, name: `Restrição ${m.constraints.length + 1}`, coefficients: Array(m.variables.length).fill(0), operator: 'le', rhs: 0,
+    id: `r${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name: `Restrição ${m.constraints.length + 1}`, coefficients: Array(m.variables.length).fill(0), operator: 'le', rhs: 0,
   }] }));
   const showTab = next => {
     setInputError(''); setPreview(null);
     if (next === 'json') setJsonText(modelToJson(model));
     if (next === 'algebra') setAlgebraText(formatAlgebraic(model));
+    if (next === 'visual') setInvalidInputs({}); // Discard incomplete lexical drafts when returning from another mode.
     setTab(next);
   };
   const buildPreview = async () => {
@@ -136,7 +137,7 @@ export function Editor({ model, setModel, pushLog, setSelectedEntity }) {
                 {c.coefficients.map((x, i) => <td key={model.variables[i].id}><NumberField label={`Restrição ${row + 1}, ${model.variables[i].id}`} value={x} onValidityChange={setValidity} onChange={value => updateConstraint(c.id, { coefficients: c.coefficients.map((n, j) => j === i ? value : n) })} /></td>)}
                 <td><select aria-label={`Operador da restrição ${row + 1}`} value={c.operator} onChange={event => updateConstraint(c.id, { operator: event.target.value })}>{Object.entries(operatorLabels).map(([value, title]) => <option key={value} value={value}>{title}</option>)}</select></td>
                 <td><NumberField label={`RHS da restrição ${row + 1}`} value={c.rhs} onValidityChange={setValidity} onChange={value => updateConstraint(c.id, { rhs: value })} /></td>
-                <td><div className="row-actions"><button aria-label={`Duplicar restrição ${row + 1}`} disabled={model.constraints.length >= MAX_CONSTRAINTS} onClick={() => change(m => ({ ...m, constraints: [...m.constraints, { ...c, id: `r${Date.now()}`, name: `${c.name} (cópia)` }] }))}><Copy size={15} /></button><button aria-label={`Remover restrição ${row + 1}`} onClick={() => { resetValidation(); change(m => ({ ...m, constraints: m.constraints.filter(item => item.id !== c.id) })); }}><Trash2 size={15} /></button></div></td>
+                <td><div className="row-actions"><button aria-label={`Duplicar restrição ${row + 1}`} disabled={model.constraints.length >= MAX_CONSTRAINTS} onClick={() => change(m => ({ ...m, constraints: [...m.constraints, { ...c, id: `r${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name: `${c.name} (cópia)` }] }))}><Copy size={15} /></button><button aria-label={`Remover restrição ${row + 1}`} onClick={() => { resetValidation(); change(m => ({ ...m, constraints: m.constraints.filter(item => item.id !== c.id) })); }}><Trash2 size={15} /></button></div></td>
               </tr>)}
             </tbody></table></div>
             <button className="add-row-button" disabled={model.constraints.length >= MAX_CONSTRAINTS} onClick={addConstraint}><Plus size={17} />Adicionar restrição</button>

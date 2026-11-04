@@ -127,3 +127,28 @@ test('geometria envia restrições reais e recebe vértices', async t => {
   const result = await calculateGeometry(sample);
   assert.equal(result.vertices.length, 2);
 });
+
+test('modelo misto preserva variáveis contínuas no Branch and Bound', async t => {
+  const previous = globalThis.fetch;
+  t.after(() => { globalThis.fetch = previous; });
+  globalThis.fetch = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    assert.equal(payload.options.force_all_integer, false);
+    assert.deepEqual(payload.model.variables.map(v => v.domain), ['integer', 'continuous', 'integer']);
+    assert.equal(payload.model.variables[0].lower_bound, null);
+    assert.equal(payload.model.variables[1].upper_bound, 12);
+    return { ok: true, json: async () => ({ status: 'optimal', objective_value: 7, explored_nodes: 3, nodes: [] }) };
+  };
+  const model = {
+    schema_version: 1, id: 'mix', name: 'Modelo misto', sense: 'max',
+    variables: [
+      { id: 'x1', name: 'Inteiro livre', domain: 'integer', lower_bound: null, upper_bound: null },
+      { id: 'x2', name: 'Contínuo limitado', domain: 'continuous', lower_bound: 0, upper_bound: 12 },
+      { id: 'x3', name: 'Inteiro', domain: 'integer', lower_bound: 0, upper_bound: null },
+    ],
+    objective: [1, 2, 3],
+    constraints: [{ id: 'r1', name: 'Capacidade', coefficients: [1, 1, 1], operator: 'le', rhs: 10 }],
+  };
+  const result = await solveInteger(model);
+  assert.equal(result.explored_nodes, 3);
+});
