@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 
 from fastapi import FastAPI, Request
@@ -24,9 +25,16 @@ from .report_pdf import build_report_pdf
 
 logger = logging.getLogger("pivonauta")
 app = FastAPI(title="PivôNauta API", version=__version__, description="Simplex and Branch and Bound, handcrafted in pure Python")
+allowed_origins = tuple(
+    origin.strip().rstrip("/")
+    for origin in os.getenv(
+        "PIVONAUTA_ALLOWED_ORIGINS",
+        "http://localhost:4173,http://127.0.0.1:4173,http://localhost:5173",
+    ).split(",") if origin.strip()
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4173", "http://127.0.0.1:4173", "http://localhost:5173"],
+    allow_origins=allowed_origins,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "X-Request-ID"],
 )
@@ -43,6 +51,15 @@ async def request_id_middleware(request: Request, call_next):
             oversized = True
         if oversized:
             response = problem(413, "Payload too large", "Maximum request size: 100KB", "PAYLOAD_TOO_LARGE", correlation_id)
+            response.headers["X-Request-ID"] = correlation_id
+            return response
+    if request.method in {"POST", "PUT", "PATCH"}:
+        body = await request.body()
+        if len(body) > 100_000:
+            response = problem(
+                413, "Payload too large", "Maximum request size: 100KB",
+                "PAYLOAD_TOO_LARGE", correlation_id,
+            )
             response.headers["X-Request-ID"] = correlation_id
             return response
     response = await call_next(request)
