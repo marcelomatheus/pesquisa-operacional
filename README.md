@@ -1,4 +1,4 @@
-# PivôNauta — Pesquisa Operacional, versão 1.0
+# PivôNauta — Pesquisa Operacional, versão 1.1
 
 O **PivôNauta** é um laboratório acadêmico para criar, validar, resolver, inspecionar, visualizar e documentar problemas de programação linear e inteira. Os algoritmos **Simplex tabular de duas fases e Branch and Bound são implementados manualmente em Python puro**, sem SciPy, NumPy ou solvers externos.
 
