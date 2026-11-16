@@ -6,6 +6,7 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Logs and debug files
 *.log
