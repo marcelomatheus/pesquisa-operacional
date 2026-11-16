@@ -76,6 +76,29 @@ docker compose down
 
 A porta HTTP padrão pode ser alterada com `PIVONAUTA_PORT`. Esta configuração é adequada a demonstrações e ambientes controlados. Para expor o sistema publicamente, configure HTTPS em um proxy ou plataforma segura, domínios e políticas operacionais.
 
+### Deploy manual na VPS existente (Traefik + Cloudflare Tunnel)
+
+Para publicar na mesma VPS do `credit-guard-ci-cd`, use o manifesto **`compose.production.yaml`**, sem alterar o `compose.yaml` local:
+
+```bash
+cp .env.production.example .env.production
+chmod 600 .env.production
+```
+
+Configure um `DOMAIN_NAME` exclusivo no arquivo privado e execute:
+
+```bash
+bash scripts/deploy_manual.sh
+```
+
+O PivôNauta compartilha o Traefik e o Cloudflare Tunnel já existentes na rede `celo-network`. O Nginx usa a porta interna **18473**, o FastAPI usa **19483** e nenhum serviço publica portas na VPS. O deploy compila imagens localmente, sem Docker Hub e sem CD. Configure no túnel um novo hostname público apontando para `http://traefik:80`, preservando o Host original. Para validar:
+
+```bash
+PIVONAUTA_URL=https://pivonauta.seu-dominio.com python3 scripts/smoke_production.py
+```
+
+O procedimento detalhado, a segurança e o rollback manual estão em [Deploy manual na VPS com Traefik](docs/DEPLOY_TRAEFIK_MANUAL.md). O manifesto de desenvolvimento e os testes atuais permanecem inalterados.
+
 ### Publicação em serviços separados
 
 Defina `VITE_API_URL=https://sua-api.example/api/v1` antes de compilar o React, e configure `PIVONAUTA_ALLOWED_ORIGINS=https://seu-frontend.example` no backend. São permitidas múltiplas origens separadas por vírgula; não utilize `*` indiscriminadamente.
