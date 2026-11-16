@@ -8,7 +8,9 @@ COPY public ./public
 RUN npm run build
 
 FROM nginx:1.27-alpine
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+ARG NGINX_CONFIG=deploy/nginx.conf
+ARG WEB_PORT=80
+COPY ${NGINX_CONFIG} /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE ${WEB_PORT}
 CMD ["nginx", "-g", "daemon off;"]

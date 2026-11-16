@@ -1,0 +1,102 @@
+name: pivonauta-prod
+services:
+  api:
+    build:
+      context: ./backend
+      args:
+        API_PORT: "19483"
+    command: ["uvicorn", "pivonauta.main:app", "--host", "0.0.0.0", "--port", "19483"]
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIVONAUTA_ALLOWED_ORIGINS: https://${DOMAIN_NAME:?DOMAIN_NAME is required}
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 15s
+    cpus: "0.75"
+    mem_limit: 384m
+    pids_limit: 100
+    expose:
+      - "19483"
+    networks:
+      - backend
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:19483/api/v1/health/ready', timeout=2)"
+      interval: 10s
+      timeout: 4s
+      retries: 6
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      args:
+        NGINX_CONFIG: deploy/nginx.production.conf
+        WEB_PORT: "18473"
+    depends_on:
+      api:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /var/run:size=4m,mode=1777
+      - /var/cache/nginx:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 15s
+    cpus: "0.35"
+    mem_limit: 128m
+    pids_limit: 80
+    expose:
+      - "18473"
+    networks:
+      - backend
+      - proxy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:18473/api/v1/health/ready"]
+      interval: 10s
+      timeout: 4s
+      retries: 6
+      start_period: 10s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${PROXY_NETWORK:-celo-network}
+      traefik.http.routers.pivonauta.rule: Host(`${DOMAIN_NAME:?DOMAIN_NAME is required}`)
+      traefik.http.routers.pivonauta.entrypoints: ${TRAEFIK_ENTRYPOINT:-web}
+      traefik.http.routers.pivonauta.service: pivonauta
+      traefik.http.services.pivonauta.loadbalancer.server.port: "18473"
+      traefik.http.services.pivonauta.loadbalancer.healthcheck.path: /api/v1/health/ready
+      traefik.http.services.pivonauta.loadbalancer.healthcheck.interval: 10s
+      traefik.http.services.pivonauta.loadbalancer.healthcheck.timeout: 3s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  backend:
+    internal: true
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-celo-network}
