@@ -10,6 +10,10 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .report_graphics import BranchTreeFigure, GeometryFigure
+from .report_labels import (
+    report_domain, report_event, report_integer_mode, report_message, report_phase,
+    report_region, report_status,
+)
 
 
 NAVY = colors.HexColor("#162235")
@@ -18,27 +22,11 @@ PURPLE = colors.HexColor("#6845AE")
 LINE = colors.HexColor("#DFE4EB")
 PALE = colors.HexColor("#F5F7FA")
 WARN = colors.HexColor("#8A6020")
-STATUS = {
-    "optimal": "Ótimo certificado",
-    "infeasible": "Inviável",
-    "unbounded": "Ilimitado",
-    "node_limit": "Limite de nos",
-    "time_limit": "Limite de tempo",
-    "iteration_limit": "Limite de iteracoes",
-    "numerical_error": "Falha numerica",
-    "not_applicable": "Não aplicável",
-    "not_certified": "Não certificado",
-    "verification_failed": "Verificação não concluída",
-    "multiple": "Ótimos múltiplos",
-    "unique": "Ótimo único",
-    "undetermined": "Inconclusivo",
-    "feasible": "Viavel",
-}
-
-
 def fmt(value):
     if value is None:
         return "n/d"
+    if isinstance(value, bool):
+        return "Sim" if value else "Não"
     if isinstance(value, float):
         return f"{value:.6g}"
     return str(value)
@@ -120,22 +108,11 @@ def add_line(story, st, text, kind="body"):
     story.append(p(text, st[kind]))
 
 
-REPORT_MESSAGE_TRANSLATIONS = {
-    "Optimal continuous solution certified by tableau":
-        "Solução contínua ótima certificada pelo tableau final.",
-    "All nodes explored/pruned; integer optimum certified":
-        "Todos os nós foram explorados ou podados; ótimo inteiro certificado.",
-    "Primal and dual objectives agree; complementary slackness verified":
-        "Os objetivos primal e dual coincidem; complementaridade verificada.",
-}
-
-
 def add_status(story, st, result, label="Estado"):
     status = result.get("status") or "not_certified"
-    add_line(story, st, f"{label}: {STATUS.get(status, status)}.")
+    add_line(story, st, f"{label}: {report_status(status)}.")
     if result.get("message"):
-        message = str(result["message"])
-        add_line(story, st, REPORT_MESSAGE_TRANSLATIONS.get(message, message), "small")
+        add_line(story, st, report_message(str(result["message"])), "small")
 
 
 def add_values(story, st, values):
@@ -149,7 +126,7 @@ def tableaux(story, st, result, maximum, heading):
     items = result.get("iterations") or []
     story.append(Paragraph(safe(heading), st["subsection"]))
     if not items:
-        add_line(story, st, "O algoritmo não retornou tableaux para esta analise.", "small")
+        add_line(story, st, "O algoritmo não retornou tableaux para esta análise.", "small")
         return
     if len(items) > maximum:
         if maximum == 1:
@@ -157,7 +134,7 @@ def tableaux(story, st, result, maximum, heading):
         else:
             indices = sorted({round(i * (len(items) - 1) / (maximum - 1)) for i in range(maximum)})
         add_line(story, st, f"Amostra representativa: {len(indices)} de {len(items)} tableaux. "
-                 "O primeiro e o ultimo estao incluidos quando o limite permite.", "note")
+                 "O primeiro e o último estão incluídos quando o limite permite.", "note")
     else:
         indices = list(range(len(items)))
     for position in indices:
@@ -168,15 +145,15 @@ def tableaux(story, st, result, maximum, heading):
         if not columns or not matrix:
             continue
         description = (f"Tableau {position + 1}/{len(items)} | "
-                       f"fase {snapshot.get('phase', 'n/d')} | "
-                       f"iteracao {snapshot.get('iteration', 'n/d')} | "
-                       f"evento {snapshot.get('event', 'n/d')}")
+                       f"{report_phase(snapshot.get('phase'))} | "
+                       f"iteração {snapshot.get('iteration', 'n/d')} | "
+                       f"evento {report_event(snapshot.get('event'))}")
         story.append(Paragraph(safe(description), st["subsection"]))
         pivot = snapshot.get("pivot") or {}
         if pivot.get("entering"):
             add_line(story, st, f"Entra: {pivot['entering']} | Sai: {pivot.get('leaving', 'n/d')} | "
-                     f"Elemento pivo: {fmt(pivot.get('value'))} | "
-                     f"Razao minima: {fmt(pivot.get('min_ratio'))}", "small")
+                     f"Elemento pivô: {fmt(pivot.get('value'))} | "
+                     f"Razão mínima: {fmt(pivot.get('min_ratio'))}", "small")
         variable_indices = list(range(max(0, len(columns) - 1)))
         rhs_index = len(columns) - 1
         for start in range(0, len(variable_indices), 8):
@@ -192,7 +169,7 @@ def tableaux(story, st, result, maximum, heading):
         if pivot.get("ratio_test"):
             ratio = "; ".join(f"L{item['row']} = {fmt(item['value'])}"
                               for item in pivot["ratio_test"])
-            add_line(story, st, f"Teste da razao: {ratio}", "small")
+            add_line(story, st, f"Teste da razão: {ratio}", "small")
         operations = snapshot.get("row_operations") or []
         if operations:
             for operation in operations[:14]:
@@ -201,12 +178,12 @@ def tableaux(story, st, result, maximum, heading):
                 factor = fmt(operation.get("factor"))
                 kind = operation.get("kind")
                 if kind == "scale":
-                    message = f"L{target} normalizada pelo elemento pivo {fmt(operation.get('pivot_value'))}."
+                    message = f"L{target} normalizada pelo elemento pivô {fmt(operation.get('pivot_value'))}."
                 else:
                     message = f"L{target} <- L{target} + ({factor})*L{source}."
                 add_line(story, st, message, "small")
             if len(operations) > 14:
-                add_line(story, st, f"{len(operations) - 14} operacoes adicionais nao detalhadas.", "note")
+                add_line(story, st, f"{len(operations) - 14} operações adicionais não detalhadas.", "note")
 
 
 def add_model(story, st, model):
@@ -223,10 +200,10 @@ def add_model(story, st, model):
         story.append(make_table(["Restrição", "Membro esquerdo", "Relação", "Limite"],
                                 rows, st, widths=[85, 435, 70, 85]))
     else:
-        add_line(story, st, "Nenhuma restricao explicita.", "small")
+        add_line(story, st, "Nenhuma restrição explícita.", "small")
     story.append(Spacer(1, 9))
     story.append(make_table(["Variável", "Domínio", "Limite inferior", "Limite superior"],
-                            [[v.id, v.domain, fmt(v.lower_bound), fmt(v.upper_bound)]
+                            [[v.id, report_domain(v.domain), fmt(v.lower_bound), fmt(v.upper_bound)]
                              for v in model.variables],
                             st, widths=[100, 155, 145, 145]))
 
@@ -246,7 +223,7 @@ def add_integer(story, st, result):
     if result.get("status") == "not_applicable":
         return
     if result.get("mode"):
-        add_line(story, st, f"Cenário: {result['mode']}", "small")
+        add_line(story, st, f"Cenário: {report_integer_mode(result['mode'])}", "small")
     certified = result.get("status") == "optimal"
     add_line(story, st, "Certificação: "
              + ("Ótimo inteiro certificado por exploração e podas."
@@ -268,19 +245,19 @@ def add_integer(story, st, result):
         story.append(Paragraph("Candidatos obtidos por arredondamento", st["subsection"]))
         story.append(make_table(["Vetor", "Viabilidade", "Objetivo"],
                                 [["; ".join(f"{k}={fmt(v)}" for k, v in item.get("values", {}).items()),
-                                  "Sim" if item.get("feasible") else "Nao", fmt(item.get("objective_value"))]
+                                  "Sim" if item.get("feasible") else "Não", fmt(item.get("objective_value"))]
                                  for item in candidates[:32]], st, widths=[385, 110, 110]))
         if len(candidates) > 32:
-            add_line(story, st, f"{len(candidates)-32} candidatos adicionais nao exibidos.", "note")
+            add_line(story, st, f"{len(candidates)-32} candidatos adicionais não exibidos.", "note")
     nodes = result.get("nodes") or []
     if nodes:
         story.append(Paragraph("Árvore de ramificação", st["subsection"]))
         story.append(BranchTreeFigure(nodes))
         if len(nodes) > 24:
-            add_line(story, st, "Diagrama resume os 24 primeiros nos; a tabela registra todos os nos explorados.", "note")
+            add_line(story, st, "Diagrama resume os 24 primeiros nós; a tabela registra todos os nós explorados.", "note")
         entries = [[item["id"], item.get("parent_id") or "-", item.get("branch_constraint") or "Raiz",
-                    item["status"], fmt(item.get("relaxation_objective"))] for item in nodes]
-        story.append(make_table(["No", "Pai", "Decisao", "Situacao", "Limite LP"], entries,
+                    report_status(item["status"]), fmt(item.get("relaxation_objective"))] for item in nodes]
+        story.append(make_table(["Nó", "Pai", "Decisão", "Situação", "Limite LP"], entries,
                                 st, widths=[90, 90, 230, 150, 115]))
 
 
@@ -289,8 +266,8 @@ def add_geometry(story, st, geometry, primal, integer, alternatives, model):
     if geometry.get("status") != "feasible":
         add_status(story, st, geometry)
         return
-    add_line(story, st, f"Região: {geometry['region_type']} | "
-             f"Limitada: {'sim' if geometry.get('bounded') else 'nao'} | "
+    add_line(story, st, f"Região: {report_region(geometry['region_type'])} | "
+             f"Limitada: {fmt(geometry.get('bounded'))} | "
              f"Dimensão: {geometry.get('dimension')} | Vértices: {len(geometry.get('vertices') or [])}")
     names = tuple(variable.id for variable in model.variables)
     multiple_certified = bool(alternatives and alternatives.get("status") == "multiple"
@@ -298,18 +275,18 @@ def add_geometry(story, st, geometry, primal, integer, alternatives, model):
     story.append(GeometryFigure(
         geometry, primal, integer, variable_names=names, multiple_certified=multiple_certified
     ))
-    add_line(story, st, "Legenda: roxo = regiao e ótimo continuo; amarelo = curvas de nivel "
+    add_line(story, st, "Legenda: roxo = região e ótimo contínuo; amarelo = curvas de nível "
              "e fronteira ótima quando certificada; verde = solução inteira; ciano = restrições; "
              "cinza = malha inteira.", "small")
     if not geometry.get("bounded"):
-        add_line(story, st, "A regiao e ilimitada. O desenho mostra somente a parte recortada "
-                 "pela janela, e nao uma regiao globalmente limitada.", "note")
+        add_line(story, st, "A região é ilimitada. O desenho mostra somente a parte recortada "
+                 "pela janela, e não uma região globalmente limitada.", "note")
     lattice = geometry.get("integer_lattice") or {}
     if lattice.get("sampled"):
-        add_line(story, st, "A malha inteira foi amostrada. Pontos omitidos podem ser viaveis; "
-                 "a amostra nao comprova otimalidade.", "note")
+        add_line(story, st, "A malha inteira foi amostrada. Pontos omitidos podem ser viáveis; "
+                 "a amostra não comprova otimalidade.", "note")
     if lattice.get("mode") == "forced_all":
-        add_line(story, st, "A malha corresponde ao cenario hipotetico com todas as variáveis inteiras.", "small")
+        add_line(story, st, "A malha corresponde ao cenário hipotético com todas as variáveis inteiras.", "small")
 
 
 def add_dual(story, st, data, limit):
@@ -328,7 +305,7 @@ def add_dual(story, st, data, limit):
         rows = []
         for item in formulation.get("constraints") or []:
             rows.append([item["id"], expression(item["coefficients"], variables),
-                         item["operator"], fmt(item["rhs"])])
+                         {"le": "≤", "ge": "≥", "eq": "="}.get(item["operator"], item["operator"]), fmt(item["rhs"])])
         if rows:
             story.append(make_table(["Restrição dual", "Membro esquerdo", "Relação", "Limite"],
                                     rows, st, widths=[105, 425, 70, 75]))
@@ -342,18 +319,18 @@ def add_alternatives(story, st, data):
     section(story, st, "6. Diagnóstico de ótimos alternativos")
     add_status(story, st, data)
     add_line(story, st, "Certificação: " + (
-        "Sim" if data.get("certified") else "Nao. O resultado e inconclusivo."
+        "Sim" if data.get("certified") else "Não. O resultado é inconclusivo."
     ), "note")
     add_line(story, st, f"Valor objetivo: {fmt(data.get('objective_value'))} | "
              f"Bases exploradas: {data.get('explored_bases', 0)}")
     if data.get("reference"):
-        add_line(story, st, "Ponto de referencia: " +
+        add_line(story, st, "Ponto de referência: " +
                  ", ".join(f"{name}={fmt(value)}" for name, value in data["reference"].items()))
     if data.get("alternative"):
         add_line(story, st, "Segundo ponto ótimo certificado: " +
                  ", ".join(f"{name}={fmt(value)}" for name, value in data["alternative"].items()))
     if data.get("status") == "multiple":
-        add_line(story, st, "Duas solucoes distintas, viaveis e com o mesmo valor objetivo "
+        add_line(story, st, "Duas soluções distintas, viáveis e com o mesmo valor objetivo "
                  "comprovam a multiplicidade do ótimo.", "small")
 
 
@@ -376,7 +353,7 @@ def build_report_pdf(payload):
     output = BytesIO()
     document = SimpleDocTemplate(
         output, pagesize=landscape(A4), leftMargin=42, rightMargin=42,
-        topMargin=42, bottomMargin=43, title="PivoNauta - Relatorio academico",
+        topMargin=42, bottomMargin=43, title="PivôNauta - Relatório acadêmico",
         author="PivoNauta", pageCompression=1,
     )
     st = styles()
@@ -389,7 +366,7 @@ def build_report_pdf(payload):
     story.append(HRFlowable(width="100%", color=PURPLE, thickness=1.5, spaceAfter=16))
     primal = payload["primal"]
     add_line(story, st, "Sumário executivo")
-    add_line(story, st, f"Simplex: {STATUS.get(primal['status'], primal['status'])}. "
+    add_line(story, st, f"Simplex: {report_status(primal['status'])}. "
              f"Valor objetivo: {fmt(primal['objective_value'])}. "
              f"Pivoteamentos: {primal['pivot_count']}.")
     selected = set(payload["sections"])
@@ -397,7 +374,7 @@ def build_report_pdf(payload):
     integer = analysis.get("integer")
     if integer:
         add_line(story, st, "Inteiros: " +
-                 STATUS.get(integer.get("status", "not_certified"), integer.get("status", "not_certified")) +
+                 report_status(integer.get("status", "not_certified")) +
                  f". Objetivo: {fmt(integer.get('objective_value'))}.")
     if payload["notices"]:
         story.append(Paragraph("Avisos de certificação e escopo", st["subsection"]))
@@ -418,7 +395,7 @@ def build_report_pdf(payload):
         add_alternatives(story, st, analysis["alternatives"])
     story.append(Spacer(1, 12))
     story.append(HRFlowable(width="100%", thickness=.8, color=LINE))
-    add_line(story, st, "Relatorio gerado por algoritmos proprios de Simplex e Branch and Bound, "
+    add_line(story, st, "Relatório gerado por algoritmos próprios de Simplex e Branch and Bound, "
              "em Python puro. As informacoes não certificadas sao identificadas explicitamente.", "small")
     document.build(story, onFirstPage=decorate, onLaterPages=decorate)
     return output.getvalue()

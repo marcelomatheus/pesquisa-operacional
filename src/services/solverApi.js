@@ -151,6 +151,12 @@ export const SOLVE_STATUSES = {
   time_limit: 'Tempo limite',
   iteration_limit: 'Limite de iterações',
   node_limit: 'Limite de nós',
+  constraint_limit: 'Limite interno de restrições',
   numerical_error: 'Falha numérica',
   unbounded_relaxation: 'Relaxação ilimitada',
+  not_certified: 'Não certificado',
+  integer: 'Solução inteira',
+  branched: 'Ramificado',
+  pruned_bound: 'Podado por limite',
+  relaxation_unbounded: 'Relaxação ilimitada',
 };

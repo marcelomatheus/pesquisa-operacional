@@ -689,3 +689,25 @@ button, input, select, textarea { font-family: inherit; }
   .observatory-live i, .observatory-constraints, .observatory-levels, .observatory-point__wave, .observatory-scan, .tableau-stream__track, .tableau-stream span.is-pivot::after { animation: none; }
   .landing-page { scroll-behavior: auto; }
 }
+
+@media (max-width: 720px) {
+  .editor-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+  .editor-topbar > div:first-child { width: 100%; min-width: 0; }
+  .editor-topbar .model-name-input { display: block; width: 100%; min-width: 0; font-size: 14px; }
+  .editor-topbar .editor-status { width: 100%; display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
+  .editor-topbar .editor-status .button {
+    flex: 1 1 140px;
+    min-height: 44px;
+    white-space: normal;
+    font-size: 11px;
+    justify-content: center;
+  }
+}
+@media (max-width: 420px) {
+  .editor-topbar .editor-status .button { flex-basis: 100%; }
+}

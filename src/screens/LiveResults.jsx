@@ -6,6 +6,7 @@ import {
   Pause, Play, RotateCcw, Sigma, Table2, Target,
 } from 'lucide-react';
 import { displayNumber, SOLVE_STATUSES } from '../services/solverApi';
+import { formatCount, translateSolverMessage } from '../services/mathPresentation';
 import { TableauViewer } from '../components/TableauViewer';
 import { BranchTree } from '../components/BranchTree';
 
@@ -48,19 +49,19 @@ export function LiveSummary({ model, result, integerTask }) {
       <section className="solution-banner">
         <div className="solution-banner__mark"><Target size={28} /></div>
         <div><small>STATUS DO SIMPLEX</small><h2>{SOLVE_STATUSES[result.status] || result.status}</h2>
-          {result.status === 'optimal' ? <><p>Valor objetivo: Z = {displayNumber(result.objective_value)}</p><p><Vector values={result.variables} /></p></> : <p>{result.message}</p>}
+          {result.status === 'optimal' ? <><p>Valor objetivo: Z = {displayNumber(result.objective_value)}</p><p><Vector values={result.variables} /></p></> : <p>{translateSolverMessage(result.message)}</p>}
         </div>
         <div className="solution-banner__status"><span>{result.status === 'optimal' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}{result.status === 'optimal' ? 'Ótimo contínuo' : 'Não certificado'}</span></div>
       </section>
       <section className="metric-grid metric-grid--result">
-        <article className="panel" style={{ padding: 20 }}><small>ITERAÇÕES</small><h2>{result.iterations?.length ?? 0} tableaux</h2><p>{result.pivot_count} pivoteamentos</p></article>
+        <article className="panel" style={{ padding: 20 }}><small>ITERAÇÕES</small><h2>{result.iterations?.length ?? 0} tableaux</h2><p>{formatCount(result.pivot_count, 'pivoteamento', 'pivoteamentos')}</p></article>
         <article className="panel" style={{ padding: 20 }}><small>RESULTADO INTEIRO</small><h2>{integerTask?.state === 'success' ? (SOLVE_STATUSES[integerTask.data.status] || integerTask.data.status) : 'Não calculado'}</h2><p>{integerTask?.state === 'success' && integerTask.data.objective_value !== null ? `Z = ${displayNumber(integerTask.data.objective_value)}` : 'Disponível na análise inteira'}</p></article>
-        <article className="panel" style={{ padding: 20 }}><small>FORMULAÇÃO</small><h2>{model.sense === 'min' ? 'Minimização' : 'Maximização'}</h2><p>{model.objective.length} variáveis · {model.constraints.length} restrições</p></article>
+        <article className="panel" style={{ padding: 20 }}><small>FORMULAÇÃO</small><h2>{model.sense === 'min' ? 'Minimização' : 'Maximização'}</h2><p>{formatCount(model.objective.length, 'variável', 'variáveis')} · {formatCount(model.constraints.length, 'restrição', 'restrições')}</p></article>
       </section>
       <section className="analysis-launchpad">
         <button onClick={() => navigate('/results/simplex')}><span className="launchpad-icon tone-violet"><Table2 size={23} /></span><div><small>PROVA ALGÉBRICA</small><strong>Simplex passo a passo</strong><p>Consulte a base, os tableaux e os pivôs realmente calculados.</p></div><ArrowRight size={18} /></button>
         <button onClick={() => navigate('/results/integer')}><span className="launchpad-icon tone-success"><GitBranch size={23} /></span><div><small>DECISÃO DISCRETA</small><strong>Branch and Bound</strong><p>Execute a busca inteira e inspecione seus nós.</p></div><ArrowRight size={18} /></button>
-        <button onClick={() => navigate('/results/report')}><span className="launchpad-icon tone-cyan"><FileChartColumn size={23} /></span><div><small>EXPORTAÇÃO</small><strong>Relatório textual</strong><p>Exporte os cálculos efetivamente disponíveis.</p></div><ArrowRight size={18} /></button>
+        <button onClick={() => navigate('/results/report')}><span className="launchpad-icon tone-cyan"><FileChartColumn size={23} /></span><div><small>EXPORTAÇÃO</small><strong>Relatório acadêmico em PDF</strong><p>Exporte os cálculos efetivamente disponíveis.</p></div><ArrowRight size={18} /></button>
       </section>
     </>}
   </div>;
@@ -98,7 +99,7 @@ export function LiveInteger({ model, result, task, onStart, setSelectedEntity })
       !data ? <Note title="Busca ainda não executada" description="Execute o Branch and Bound para inspecionar os resultados." action={<button className="button button--primary" onClick={onStart}>Resolver inteiro</button>} /> :
       <>
         <section className="metric-grid metric-grid--result">
-          <article className="panel" style={{ padding: 20 }}><small>STATUS</small><h2>{SOLVE_STATUSES[data.status] || data.status}</h2><p>{data.message}</p></article>
+          <article className="panel" style={{ padding: 20 }}><small>STATUS</small><h2>{SOLVE_STATUSES[data.status] || data.status}</h2><p>{translateSolverMessage(data.message)}</p></article>
           <article className="panel" style={{ padding: 20 }}><small>INCUMBENTE</small><h2>{displayNumber(data.objective_value)}</h2><p><Vector values={data.variables} /></p></article>
           <article className="panel" style={{ padding: 20 }}><small>NÓS EXPLORADOS</small><h2>{data.explored_nodes}</h2><p>{data.status === 'optimal' ? 'Ótimo inteiro certificado' : 'Otimização não certificada'}</p></article>
         </section>

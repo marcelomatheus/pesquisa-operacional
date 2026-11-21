@@ -32,7 +32,7 @@ function downloadJson(model) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function Editor({ model, setModel, pushLog, setSelectedEntity }) {
+export function Editor({ model, setModel, onApplyModel, pushLog, setSelectedEntity }) {
   const navigate = useNavigate();
   const [tab, setTab] = useState('visual');
   const [jsonText, setJsonText] = useState('');
@@ -89,9 +89,9 @@ export function Editor({ model, setModel, pushLog, setSelectedEntity }) {
       setInputError(error.message || 'Não foi possível interpretar o modelo.');
     }
   };
-  const applyPreview = () => {
+  const applyPreview = async () => {
     if (!preview) return;
-    setModel(preview);
+    await onApplyModel(preview);
     resetValidation();
     pushLog({ tone: 'cyan', text: `${tab === 'json' ? 'JSON' : 'Expressões algébricas'} validado e aplicado`, time: new Date().toLocaleTimeString('pt-BR') });
     setPreview(null); setInputError(''); setTab('visual');

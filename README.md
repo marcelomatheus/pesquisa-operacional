@@ -158,6 +158,12 @@ O backend mantém a entrada pública de até 10 variáveis e 30 restrições, ma
 
 A CI também compara soluções próprias com `scipy.optimize.linprog` e `scipy.optimize.milp` **somente nos testes**; não é incluído nenhum solver de terceiros na imagem de produção. Consulte [Revisão de confiabilidade do backend](docs/REVISAO_BACKEND_PR11.md).
 
+## Correções verificadas na auditoria de produção
+
+A revisão realizada em 21/11/2026 identificou quatro defeitos de interface/estado na aplicação publicada: formulário comprimido, operadores inválidos na tela dual, recarga imediata após salvar e ações cortadas no celular. O [PR #13](https://github.com/marcelomatheus/pesquisa-operacional/pull/13) corrige esses pontos e adiciona testes específicos, além de localizar rótulos matemáticos e relatórios PDF.
+
+Consulte [Correções da auditoria de produção](docs/REMEDIACAO_AUDITORIA_2026-11-21.md) para reproduções, evidências, critérios de aceite e instruções de deploy de frontend e backend. A versão publicada na VPS só muda após uma atualização manual.
+
 ## Limitações e advertências da v1
 
 - O gráfico matemático está disponível apenas para modelos com exatamente duas variáveis.

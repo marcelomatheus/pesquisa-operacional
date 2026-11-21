@@ -130,3 +130,73 @@ test('páginas permanecem acessíveis no viewport de dispositivo móvel', async 
   await expect(page.getByRole('heading', { name: 'Relatório técnico em PDF' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Exportar PDF/ })).toBeVisible();
 });
+
+
+test('editor visual ocupa a largura útil em desktop e mobile', async ({ page }) => {
+  for (const width of [1366, 1024, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 850 });
+    await page.goto('/#/editor');
+    const node = page.locator('.equation-node--constraints');
+    const content = node.locator('.node-content');
+    await expect(node).toBeVisible();
+    const box = await node.boundingBox();
+    const contentBox = await content.boundingBox();
+    expect(contentBox.width, `conteúdo comprimido a ${width}px`).toBeGreaterThan(box.width - 75);
+    await expect(content.locator('input').first()).toBeVisible();
+  }
+});
+
+test('botões do editor permanecem integralmente visíveis a partir de 320px', async ({ page }) => {
+  for (const width of [320, 375, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/#/editor');
+    for (const label of ['Exportar JSON', 'Revisar modelo']) {
+      const button = page.getByRole('button', { name: label });
+      await expect(button).toBeVisible();
+      const bounds = await button.boundingBox();
+      expect(bounds.x, `${label} começa fora da tela a ${width}px`).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width, `${label} ultrapassa a tela a ${width}px`).toBeLessThanOrEqual(width);
+      expect(bounds.height, `${label} tem alvo de toque pequeno`).toBeGreaterThanOrEqual(44);
+    }
+  }
+});
+
+test('dualidade apresenta le, ge e eq como relações reais, nunca undefined', async ({ page }) => {
+  const mixedRelations = {
+    ...wyndor,
+    name: 'Relações E2E',
+    constraints: [
+      { id: 'r1', coefficients: [1, 0], operator: 'le', rhs: 4 },
+      { id: 'r2', coefficients: [0, 1], operator: 'ge', rhs: 1 },
+      { id: 'r3', coefficients: [1, 1], operator: 'eq', rhs: 5 },
+    ],
+  };
+  await importModel(page, mixedRelations);
+  await page.goto('/#/results/dual');
+  const primal = page.locator('.dual-model--primal');
+  await expect(primal).toBeVisible();
+  await expect(page.getByText('Dualidade forte verificada')).toBeVisible();
+  const lines = await primal.innerText();
+  expect(lines).not.toContain('undefined');
+  expect(lines).toContain('≤');
+  expect(lines).toContain('≥');
+  expect(lines).toContain('=');
+});
+
+test('importação aplica rascunho imediatamente, mesmo sem aguardar debounce', async ({ page }) => {
+  await importModel(page);
+  await page.reload();
+  await expect(page.locator('main .model-name-input')).toHaveValue('Wyndor E2E');
+});
+
+test('salvar na biblioteca confirma também persistência imediata do modelo ativo', async ({ page }) => {
+  await importModel(page);
+  await page.goto('/#/library');
+  await page.getByRole('button', { name: 'Salvar modelo ativo' }).click();
+  await expect(page.getByRole('heading', { name: 'Wyndor E2E' })).toBeVisible();
+  await page.reload();
+  await page.goto('/#/editor');
+  await expect(page.locator('main .model-name-input')).toHaveValue('Wyndor E2E');
+  await page.goto('/#/library');
+  await expect(page.getByRole('heading', { name: 'Wyndor E2E' })).toBeVisible();
+});
