@@ -81,7 +81,7 @@ export function DualAnalysis({ model, setSelectedEntity }) {
         <article className="panel dual-model dual-model--primal">
           <div className="dual-model__head"><span>PRIMAL</span><strong>{model.sense === 'min' ? 'Minimização' : 'Maximização'}</strong></div>
           <div className="dual-equation"><small>OBJETIVO</small><LinearEquation coefficients={model.objective} rhs="Z" operator="eq" variablePrefix="x" /></div>
-          {model.constraints.map((constraint, i) => <div key={constraint.id || i} style={{ padding: '10px 16px' }}><small>R{i + 1} </small><LinearEquation coefficients={constraint.coefficients} operator={{ '≤': 'le', '≥': 'ge', '=': 'eq' }[constraint.operator]} rhs={constraint.rhs} variablePrefix="x" /></div>)}
+          {model.constraints.map((constraint, i) => <div key={constraint.id || i} style={{ padding: '10px 16px' }}><small>R{i + 1} </small><LinearEquation coefficients={constraint.coefficients} operator={constraint.operator} rhs={constraint.rhs} variablePrefix="x" /></div>)}
         </article>
         <div className="duality-axis"><span>DUAL</span><Sigma size={23} /><small>Aᵀ</small></div>
         <article className="panel dual-model dual-model--dual">
