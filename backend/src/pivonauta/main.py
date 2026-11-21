@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 import os
 import uuid
+from contextlib import contextmanager
+from threading import BoundedSemaphore
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -22,8 +24,29 @@ from .simplex import solve_simplex
 from .standard_form import describe_standard_form
 from .report_data import collect_report
 from .report_pdf import build_report_pdf
+from .response_schemas import (
+    AlternativesResponse, DualityResponse, GeometryResponse, HealthResponse,
+    IntegerResponse, ModelValidationResponse, SolveResponse, StandardFormResponse,
+)
 
 logger = logging.getLogger("pivonauta")
+MAX_REQUEST_BYTES = 100_000
+compute_slots = BoundedSemaphore(4)
+
+
+class ComputeBusy(RuntimeError):
+    pass
+
+
+@contextmanager
+def computation_slot():
+    if not compute_slots.acquire(blocking=False):
+        raise ComputeBusy("The solver is busy; retry the request shortly")
+    try:
+        yield
+    finally:
+        compute_slots.release()
+
 app = FastAPI(title="PivôNauta API", version=__version__, description="Simplex and Branch and Bound, handcrafted in pure Python")
 allowed_origins = tuple(
     origin.strip().rstrip("/")
@@ -54,14 +77,19 @@ async def request_id_middleware(request: Request, call_next):
             response.headers["X-Request-ID"] = correlation_id
             return response
     if request.method in {"POST", "PUT", "PATCH"}:
-        body = await request.body()
-        if len(body) > 100_000:
-            response = problem(
-                413, "Payload too large", "Maximum request size: 100KB",
-                "PAYLOAD_TOO_LARGE", correlation_id,
-            )
-            response.headers["X-Request-ID"] = correlation_id
-            return response
+        chunks = []
+        total_bytes = 0
+        async for chunk in request.stream():
+            total_bytes += len(chunk)
+            if total_bytes > MAX_REQUEST_BYTES:
+                response = problem(
+                    413, "Payload too large", "Maximum request size: 100KB",
+                    "PAYLOAD_TOO_LARGE", correlation_id,
+                )
+                response.headers["X-Request-ID"] = correlation_id
+                return response
+            chunks.append(chunk)
+        request._body = b"".join(chunks)
     response = await call_next(request)
     response.headers["X-Request-ID"] = correlation_id
     return response
@@ -90,6 +118,11 @@ async def domain_exception_handler(request: Request, exc: InvalidModel):
     return problem(422, "Invalid model", str(exc), "INVALID_MODEL", request.state.request_id)
 
 
+@app.exception_handler(ComputeBusy)
+async def compute_busy_handler(request: Request, exc: ComputeBusy):
+    return problem(429, "Solver busy", str(exc), "SOLVER_BUSY", request.state.request_id)
+
+
 @app.exception_handler(ValueError)
 async def value_exception_handler(request: Request, exc: ValueError):
     return problem(422, "Invalid operation", str(exc), "INVALID_OPERATION", request.state.request_id)
@@ -102,17 +135,17 @@ async def unexpected_error_handler(request: Request, exc: Exception):
                    request.state.request_id)
 
 
-@app.get("/api/v1/health/live")
+@app.get("/api/v1/health/live", response_model=HealthResponse, response_model_exclude_none=True)
 def health_live():
     return {"status": "ok"}
 
 
-@app.get("/api/v1/health/ready")
+@app.get("/api/v1/health/ready", response_model=HealthResponse)
 def health_ready():
     return {"status": "ready", "version": __version__}
 
 
-@app.post("/api/v1/models/validate")
+@app.post("/api/v1/models/validate", response_model=ModelValidationResponse)
 def validate_model(request: ModelRequest):
     model = request.model.to_domain()
     return {"structurally_valid": True,
@@ -121,49 +154,56 @@ def validate_model(request: ModelRequest):
             "constraint_count": len(model.constraints)}
 
 
-@app.post("/api/v1/solves")
+@app.post("/api/v1/solves", response_model=SolveResponse)
 def solve_model(request: SolveRequest):
     model = request.model.to_domain()
-    result = solve_simplex(model, **request.options.model_dump())
-    return result.to_dict()
+    with computation_slot():
+        result = solve_simplex(model, **request.options.model_dump())
+        return result.to_dict()
 
 
-@app.post("/api/v1/solves/integer")
+@app.post("/api/v1/solves/integer", response_model=IntegerResponse)
 def solve_integer(request: IntegerRequest):
     model = request.model.to_domain()
-    result = solve_branch_bound(model, **request.options.model_dump())
-    return result.to_dict()
+    with computation_slot():
+        result = solve_branch_bound(model, **request.options.model_dump())
+        return result.to_dict()
 
 
-@app.post("/api/v1/solves/dual")
+@app.post("/api/v1/solves/dual", response_model=DualityResponse)
 def solve_dual_problem(request: SolveRequest):
     model = request.model.to_domain()
-    return solve_dual(model, **request.options.model_dump()).to_dict()
+    with computation_slot():
+        return solve_dual(model, **request.options.model_dump()).to_dict()
 
 
-@app.post("/api/v1/solves/alternatives")
+@app.post("/api/v1/solves/alternatives", response_model=AlternativesResponse)
 def analyze_alternative_optima(request: AnalysisRequest):
     model = request.model.to_domain()
-    return analyze_optima(model, **request.options.model_dump()).to_dict()
+    with computation_slot():
+        return analyze_optima(model, **request.options.model_dump()).to_dict()
 
 
-@app.post("/api/v1/geometry")
+@app.post("/api/v1/geometry", response_model=GeometryResponse)
 def calculate_geometry(request: GeometryRequest):
     model = request.model.to_domain()
-    return build_geometry(model, **request.options.model_dump()).to_dict()
+    with computation_slot():
+        return build_geometry(model, **request.options.model_dump()).to_dict()
 
 
-@app.post("/api/v1/models/standard-form")
+@app.post("/api/v1/models/standard-form", response_model=StandardFormResponse)
 def standard_form(request: ModelRequest):
-    return describe_standard_form(request.model.to_domain())
+    with computation_slot():
+        return describe_standard_form(request.model.to_domain())
 
 
 
-@app.post("/api/v1/reports/pdf")
+@app.post("/api/v1/reports/pdf", response_class=Response, responses={200: {"content": {"application/pdf": {}}}})
 def generate_pdf_report(request: ReportRequest):
     model = request.model.to_domain()
-    report = collect_report(model, request.options)
-    document = build_report_pdf(report)
+    with computation_slot():
+        report = collect_report(model, request.options)
+        document = build_report_pdf(report)
     return Response(
         content=document,
         media_type="application/pdf",
