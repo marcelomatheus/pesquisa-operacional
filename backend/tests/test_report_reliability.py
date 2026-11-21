@@ -1,6 +1,5 @@
 from io import BytesIO
 
-import pytest
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
 

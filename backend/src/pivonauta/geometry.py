@@ -10,7 +10,7 @@ from itertools import combinations
 from math import atan2, hypot, isfinite
 from time import monotonic
 
-from .domain import InvalidModel, LinearProgram, Variable, is_feasible
+from .domain import InvalidModel, LinearProgram, Variable
 from .geometry_overlays import integer_lattice, objective_contours, optimal_face
 from .simplex import solve_simplex
 

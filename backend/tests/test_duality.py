@@ -1,7 +1,7 @@
 import pytest
 
 from pivonauta.domain import Constraint, LinearProgram, Variable
-from pivonauta.duality import build_dual, solve_dual
+from pivonauta.duality import solve_dual
 
 
 def problem(sense, costs, rows, variables=None):

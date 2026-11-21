@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from math import ceil, floor, isfinite
+from math import ceil, floor
 from time import monotonic
 
 from .domain import MAX_INTERNAL_CONSTRAINTS, Constraint, LinearProgram, is_feasible, objective_value
