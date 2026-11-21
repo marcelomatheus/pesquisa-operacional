@@ -360,6 +360,55 @@ await inBrowser('15-relatorio-mobile',async page=>{
  assert(await page.getByRole('button',{name:/Exportar PDF/}).isVisible(),'Exportar indisponível no mobile');
  return {buttonVisible:true};
 },{width:390,height:844});
+await inBrowser('16-editor-grid-conteudo',async page=>{
+ await page.goto(host+'/#/editor');
+ await page.locator('.equation-node--constraints .node-content').waitFor({timeout:12000});
+ const measure=await page.evaluate(()=>{
+   const node=document.querySelector('.equation-node--constraints');
+   const content=node.querySelector('.node-content');
+   return {gridTemplate:getComputedStyle(node).gridTemplateColumns,nodeWidth:node.getBoundingClientRect().width,contentWidth:content.getBoundingClientRect().width,
+     children:node.children.length};
+ });
+ assert(measure.contentWidth>=300,'Conteúdo estreito demais para editar restrições: '+JSON.stringify(measure));
+ return measure;
+});
+await inBrowser('17-editor-header-mobile-visibilidade',async page=>{
+ await page.goto(host+'/#/editor');
+ const button=page.getByRole('button',{name:'Revisar modelo'});
+ await button.waitFor({timeout:12000});
+ const box=await button.boundingBox();
+ const screen=await page.evaluate(()=>innerWidth);
+ assert(box&&box.x+box.width<=screen-4,'Botão Revisar modelo cortado: '+JSON.stringify({box,screen}));
+ return {box,screen};
+},{width:390,height:844});
+await inBrowser('18-dual-primal-operadores',async page=>{
+ await importModel(page,scenarios.wyndor);
+ await solveUI(page);
+ await page.goto(host+'/#/results/dual');
+ await page.getByText('Dualidade forte verificada').waitFor({timeout:18000});
+ const eqs=(await page.locator('.dual-model--primal').innerText());
+ assert(!eqs.includes('undefined'),'Operadores matemáticos ausentes: '+eqs.slice(0,500));
+ return {primal: eqs.slice(0,550)};
+});
+await inBrowser('19-biblioteca-salvo-recarrega',async page=>{
+ await importModel(page,scenarios.wyndor);
+ await page.goto(host+'/#/library');
+ await page.getByRole('button',{name:'Salvar modelo ativo'}).click();
+ await page.getByRole('heading',{name:scenarios.wyndor.name}).first().waitFor({timeout:12000});
+ await page.reload();
+ await page.goto(host+'/#/library');
+ await page.getByRole('heading',{name:scenarios.wyndor.name}).first().waitFor({timeout:15000});
+ return {libraryEntryPersisted:true};
+});
+await inBrowser('20-rascunho-apos-debounce',async page=>{
+ await importModel(page,scenarios.wyndor);
+ await page.waitForTimeout(1150);
+ await page.reload();
+ await page.goto(host+'/#/editor');
+ await page.waitForFunction(expected=>document.querySelector('main .model-name-input')?.value===expected,
+   scenarios.wyndor.name,{timeout:6500});
+ return {activeName:await page.locator('main .model-name-input').inputValue()};
+});
 if(browser)await browser.close();
 const summary={target:host,completed:new Date().toISOString(),total:records.length,
   passed:records.filter(r=>r.status==='PASS').length,failed:records.filter(r=>r.status==='FAIL').length,
