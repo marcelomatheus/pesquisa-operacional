@@ -91,6 +91,9 @@ export default function App() {
   const openModel = useCallback((candidate, { saved = false } = {}) => {
     const canonical = normalizeModelInput(candidate, { preserveId: true });
     setModel(canonical);
+    void writeDraft(canonical).catch(error =>
+      setStorageWarning(error.message || 'Falha ao salvar modelo ativo.')
+    );
     setSavedSignature(saved ? JSON.stringify(canonical) : null);
     setRun(null);
     setIntegerTask(null);
@@ -99,6 +102,7 @@ export default function App() {
   const saveCurrentModel = useCallback(async () => {
     const validation = validateModelLocal(model);
     if (!validation.valid) throw new Error(validation.errors[0]);
+    await writeDraft(model);
     await saveModel(model);
     setSavedSignature(JSON.stringify(model));
     setStorageWarning('');
@@ -275,12 +279,16 @@ export default function App() {
     return <Landing onNewModel={createNewModel} />;
   }
 
+  if (!hydrated) {
+    return <div className="page" role="status">Carregando modelo salvo…</div>;
+  }
+
   return (
     <AppShell {...shellProps}>
       <Routes location={location} key={location.pathname}>
         <Route path="/workspace" element={<Dashboard model={model} result={result} integerTask={currentIntegerTask} onNewModel={createNewModel} />} />
         <Route path="/library" element={<Library model={model} onOpenModel={openModel} onSaveModel={saveCurrentModel} pushLog={pushLog} />} />
-        <Route path="/editor" element={<Editor model={model} setModel={setModel} pushLog={pushLog} setSelectedEntity={setSelectedEntity} />} />
+        <Route path="/editor" element={<Editor model={model} setModel={setModel} onApplyModel={openModel} pushLog={pushLog} setSelectedEntity={setSelectedEntity} />} />
         <Route path="/review" element={<Review model={model} solve={solve} solving={solving} solveError={solveError} />} />
         <Route path="/results/summary" element={<LiveSummary model={model} result={result} integerTask={currentIntegerTask} />} />
         <Route path="/results/simplex" element={<LiveSimplex result={result} setSelectedEntity={setSelectedEntity} />} />
