@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import asdict, dataclass
 from math import isfinite
+from time import monotonic
 
 from .domain import LinearProgram, is_feasible, objective_value
 from .simplex import _pivot, solve_simplex, standardize
@@ -34,6 +35,7 @@ def analyze_optima(model: LinearProgram, *, max_bases: int = 200,
                    time_limit: float = 3.0) -> AlternativeOptimaResult:
     if not 1 <= max_bases <= 1000:
         raise ValueError('max_bases must be between 1 and 1000')
+    started = monotonic()
     solved = solve_simplex(model, max_iterations=max_iterations, time_limit=time_limit,
                            tolerance=tolerance, include_trace=True)
     if solved.status != 'optimal' or solved.variables is None:
@@ -64,7 +66,11 @@ def analyze_optima(model: LinearProgram, *, max_bases: int = 200,
 
     queue = deque([(current, bases)])
     visited = set()
+    timed_out = False
     while queue and len(visited) < max_bases:
+        if monotonic() - started >= time_limit:
+            timed_out = True
+            break
         tableau, basis = queue.popleft()
         key = tuple(basis)
         if key in visited:

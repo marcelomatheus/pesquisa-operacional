@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from math import ceil, floor, isfinite
 from time import monotonic
 
-from .domain import Constraint, LinearProgram, is_feasible, objective_value
+from .domain import MAX_INTERNAL_CONSTRAINTS, Constraint, LinearProgram, is_feasible, objective_value
 from .simplex import solve_simplex
 
 
@@ -36,6 +36,7 @@ class BranchBoundResult:
     optimality_gap: float | None
     rounding_candidates: list[dict]
     message: str
+    best_rounding_candidate: dict | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -87,8 +88,9 @@ def solve_branch_bound(model: LinearProgram, *, max_nodes: int = 200,
     if not integer_indices:
         raise ValueError("At least one integer variable is required")
     started = monotonic()
-    pending: list[tuple[str, str | None, int, LinearProgram, str | None, dict | None]] = [
-        ("P0", None, 0, model, None, None)
+    pending: list[tuple[str, str | None, int, LinearProgram, str | None, dict | None,
+                        float | None]] = [
+        ("P0", None, 0, model, None, None, None)
     ]
     nodes: list[BranchNode] = []
     by_id: dict[str, BranchNode] = {}
@@ -96,6 +98,7 @@ def solve_branch_bound(model: LinearProgram, *, max_nodes: int = 200,
     incumbent_z: float | None = None
     candidates: list[dict] = []
     termination: str | None = None
+    unfinished_bound: float | None = None
     while pending:
         if len(nodes) >= max_nodes:
             termination = "node_limit"
@@ -104,7 +107,7 @@ def solve_branch_bound(model: LinearProgram, *, max_nodes: int = 200,
         if remaining <= 0:
             termination = "time_limit"
             break
-        node_id, parent, depth, local_model, branch_label, branch_decision = pending.pop()
+        node_id, parent, depth, local_model, branch_label, branch_decision, inherited_bound = pending.pop()
         lp = solve_simplex(local_model, max_iterations=max_iterations,
                            time_limit=remaining, tolerance=1e-9,
                            include_trace=False)
@@ -123,6 +126,7 @@ def solve_branch_bound(model: LinearProgram, *, max_nodes: int = 200,
             break
         if lp.status != "optimal" or lp.variables is None or lp.objective_value is None:
             node.status = lp.status
+            unfinished_bound = inherited_bound
             termination = lp.status
             break
         if node_id == "P0":
@@ -154,6 +158,11 @@ def solve_branch_bound(model: LinearProgram, *, max_nodes: int = 200,
                              for i in range(len(model.objective)))
         left_rhs = floor(value)
         right_rhs = ceil(value)
+        if len(local_model.constraints) >= MAX_INTERNAL_CONSTRAINTS:
+            node.status = "constraint_limit"
+            unfinished_bound = z
+            termination = "constraint_limit"
+            break
         left = local_model.with_constraint(Constraint(coefficients, "le", float(left_rhs),
                                                        id=f"{node_id}_left"))
         right = local_model.with_constraint(Constraint(coefficients, "ge", float(right_rhs),
@@ -163,25 +172,49 @@ def solve_branch_bound(model: LinearProgram, *, max_nodes: int = 200,
         # LIFO DFS: left branch visited before right.
         pending.append((f"{node_id}.R", node_id, depth + 1, right,
                         f"{var_name} >= {right_rhs}",
-                        {"variable_id": var_name, "operator": "ge", "rhs": float(right_rhs)}))
+                        {"variable_id": var_name, "operator": "ge", "rhs": float(right_rhs)}, z))
         pending.append((f"{node_id}.L", node_id, depth + 1, left,
                         f"{var_name} <= {left_rhs}",
-                        {"variable_id": var_name, "operator": "le", "rhs": float(left_rhs)}))
+                        {"variable_id": var_name, "operator": "le", "rhs": float(left_rhs)}, z))
 
     status = termination or ("optimal" if incumbent is not None else "infeasible")
-    # If the tree wasn't exhausted, a feasible incumbent is NOT proven optimal.
+    rounding_feasible = [candidate for candidate in candidates if candidate["feasible"]]
+    best_rounding = (
+        (max(rounding_feasible, key=lambda item: item["objective_value"])
+         if model.sense == "max" else
+         min(rounding_feasible, key=lambda item: item["objective_value"]))
+        if rounding_feasible else None
+    )
+    best_bound = None
+    gap = None
+    if status == "optimal":
+        best_bound = incumbent_z
+        gap = 0.0
+    elif termination and termination != "unbounded_relaxation":
+        frontier = [bound for *_, bound in pending]
+        if unfinished_bound is not None:
+            frontier.append(unfinished_bound)
+        if frontier and all(bound is not None for bound in frontier):
+            bounds = [float(bound) for bound in frontier]
+            if incumbent_z is not None:
+                bounds.append(incumbent_z)
+            best_bound = max(bounds) if model.sense == "max" else min(bounds)
+            if incumbent_z is not None:
+                absolute_gap = (best_bound - incumbent_z if model.sense == "max"
+                                else incumbent_z - best_bound)
+                gap = max(0.0, absolute_gap) / max(1.0, abs(incumbent_z))
     message = {
         "optimal": "All nodes explored/pruned: integer optimum certified",
         "infeasible": "No feasible integer solution was found after exhaustive search",
         "node_limit": "Node limit reached; incumbent is not certified optimal",
         "time_limit": "Time limit reached; incumbent is not certified optimal",
+        "constraint_limit": "Internal constraint limit reached; optimality not certified",
         "unbounded_relaxation": "LP relaxation unbounded; integer optimality undetermined",
     }.get(status, "Branch and Bound stopped without an optimality certificate")
     return BranchBoundResult(
         status, incumbent_z,
         {var.id: incumbent[i] for i, var in enumerate(model.variables)} if incumbent else None,
         len(nodes), nodes,
-        incumbent_z if status == "optimal" else None,
-        0.0 if status == "optimal" else None,
-        candidates, message,
+        best_bound, gap,
+        candidates, message, best_rounding,
     )
