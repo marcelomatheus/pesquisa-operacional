@@ -353,7 +353,7 @@ def build_report_pdf(payload):
     output = BytesIO()
     document = SimpleDocTemplate(
         output, pagesize=landscape(A4), leftMargin=42, rightMargin=42,
-        topMargin=42, bottomMargin=43, title="PivoNauta - Relatorio academico",
+        topMargin=42, bottomMargin=43, title="PivôNauta - Relatório acadêmico",
         author="PivoNauta", pageCompression=1,
     )
     st = styles()
