@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { examples } from '../data';
 import { normalizeModelInput, newId } from '../services/model';
 import { deleteSavedModel, duplicateSavedModel, listSavedModels } from '../services/storage';
+import { formatCount } from '../services/mathPresentation';
 
 export function Library({ model, onOpenModel, onSaveModel, pushLog }) {
   const navigate = useNavigate();
@@ -29,11 +30,15 @@ export function Library({ model, onOpenModel, onSaveModel, pushLog }) {
       (filter === 'Maximização' && item.sense === 'max') ||
       (filter === 'Salvos' && item.saved));
   });
-  const openModel = item => {
-    const target = item.saved ? { ...item } : normalizeModelInput(item);
-    onOpenModel(target, { saved: item.saved });
-    pushLog({ tone: 'cyan', text: `Modelo “${item.name}” carregado no editor`, time: new Date().toLocaleTimeString('pt-BR') });
-    navigate('/editor');
+  const openModel = async item => {
+    try {
+      const target = item.saved ? { ...item } : normalizeModelInput(item);
+      await onOpenModel(target, { saved: item.saved });
+      pushLog({ tone: 'cyan', text: `Modelo “${item.name}” carregado no editor`, time: new Date().toLocaleTimeString('pt-BR') });
+      navigate('/editor');
+    } catch (error) {
+      setError(error.message || 'Não foi possível abrir o modelo.');
+    }
   };
   const doSave = async () => {
     try { setBusy(true); await onSaveModel(); await refresh(); }
@@ -66,7 +71,7 @@ export function Library({ model, onOpenModel, onSaveModel, pushLog }) {
         <div className="model-card__visual"><span className="model-card__badge">{item.saved ? 'SALVO LOCALMENTE' : item.eyebrow}</span><div className="mini-plot"><i /><i /><i /><b /></div></div>
         <div className="model-card__content"><div className="model-card__title"><div><small>{item.sense === 'min' ? 'MINIMIZAÇÃO' : 'MAXIMIZAÇÃO'}</small><h2>{item.name}</h2></div>{model.id === item.id && <CheckCircle2 size={19} />}</div>
           <p>{item.description}</p><code>{item.sense === 'min' ? 'Min' : 'Max'} Z = {item.objective.map((x, j) => `${x}x${j + 1}`).join(' + ')}</code>
-          <div className="model-card__footer"><span>{item.constraints.length} restrições · {item.objective.length} variáveis</span>
+          <div className="model-card__footer"><span>{formatCount(item.constraints.length, 'restrição', 'restrições')} · {formatCount(item.objective.length, 'variável', 'variáveis')}</span>
             <button onClick={() => openModel(item)}>Abrir <ArrowUpRight size={16} /></button>
             {item.saved && <><button disabled={busy} title="Duplicar" aria-label={`Duplicar ${item.name}`} onClick={() => doDuplicate(item)}><Copy size={15} /></button>
               <button disabled={busy} title="Excluir" aria-label={`Excluir ${item.name}`} onClick={() => doDelete(item)}><Trash2 size={15} /></button></>}

@@ -14,6 +14,7 @@ import { createBlankModel, newId, normalizeModelInput, validateModelLocal } from
 import { getSavedModel, listRuns, loadDraft, rememberRun, saveModel, writeDraft } from './services/storage';
 import { fromBranchBoundResult, fromLegacyLog, fromSimplexResult, mergeConsoleEvents } from './services/solverEvents';
 import { AlternativesAnalysis, DualAnalysis, GeometryAnalysis } from './screens/MathAnalysis';
+import { formatCount, formatSolverStatus } from './services/mathPresentation';
 
 export default function App() {
   const navigate = useNavigate();
@@ -88,12 +89,14 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [model, hydrated]);
 
-  const openModel = useCallback((candidate, { saved = false } = {}) => {
+  const openModel = useCallback(async (candidate, { saved = false } = {}) => {
     const canonical = normalizeModelInput(candidate, { preserveId: true });
+    try {
+      await writeDraft(canonical);
+    } catch (error) {
+      setStorageWarning(error.message || 'Falha ao salvar modelo ativo.');
+    }
     setModel(canonical);
-    void writeDraft(canonical).catch(error =>
-      setStorageWarning(error.message || 'Falha ao salvar modelo ativo.')
-    );
     setSavedSignature(saved ? JSON.stringify(canonical) : null);
     setRun(null);
     setIntegerTask(null);
@@ -109,8 +112,8 @@ export default function App() {
     pushLog({ tone: 'success', text: 'Modelo salvo na biblioteca local', time: new Date().toLocaleTimeString('pt-BR') });
   }, [model, pushLog]);
 
-  const createNewModel = useCallback(() => {
-    openModel(createBlankModel());
+  const createNewModel = useCallback(async () => {
+    await openModel(createBlankModel());
     setSelectedEntity({ type: 'model' });
     pushLog({ tone: 'violet', text: 'Novo modelo criado com estrutura inicial', time: new Date().toLocaleTimeString('pt-BR') });
     navigate('/editor');
@@ -136,7 +139,7 @@ export default function App() {
         .catch(error => setStorageWarning(error.message || 'Não foi possível registrar execução.'));
       setIntegerTask(null);
       pushLog({ tone: calculated.status === 'optimal' ? 'success' : 'amber',
-        text: `Simplex: ${calculated.status} · ${calculated.pivot_count} pivoteamentos`, time: 'agora' });
+        text: `Simplex: ${formatSolverStatus(calculated.status)} · ${formatCount(calculated.pivot_count, 'pivoteamento', 'pivoteamentos')}`, time: 'agora' });
       navigate('/results/summary');
     } catch (error) {
       if (latestFingerprintRef.current === inputFingerprint) {
@@ -167,7 +170,7 @@ export default function App() {
         method: 'branch_bound', status: calculated.status, result: calculated })
         .catch(error => setStorageWarning(error.message || 'Não foi possível registrar execução.'));
       pushLog({ tone: calculated.status === 'optimal' ? 'success' : 'amber',
-        text: `Branch and Bound: ${calculated.status} · ${calculated.explored_nodes} nós`, time: 'agora' });
+        text: `Branch and Bound: ${formatSolverStatus(calculated.status)} · ${formatCount(calculated.explored_nodes, 'nó', 'nós')}`, time: 'agora' });
     } catch (error) {
       if (latestFingerprintRef.current === inputFingerprint) {
         setIntegerTask({ fingerprint: inputFingerprint, state: 'error', error: error.message });
@@ -239,7 +242,7 @@ export default function App() {
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute: async (input) => {
         if (!input || !Array.isArray(input.objective) || !Array.isArray(input.constraints)) throw new Error('Formulação inválida.');
-        openModel(normalizeModelInput({
+        await openModel(normalizeModelInput({
           name: input.name, sense: input.sense, objective: input.objective,
           constraints: input.constraints.map((constraint, index) => ({
             id: `r${index + 1}`, name: constraint.name,

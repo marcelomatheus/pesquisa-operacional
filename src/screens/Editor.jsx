@@ -89,9 +89,9 @@ export function Editor({ model, setModel, onApplyModel, pushLog, setSelectedEnti
       setInputError(error.message || 'Não foi possível interpretar o modelo.');
     }
   };
-  const applyPreview = () => {
+  const applyPreview = async () => {
     if (!preview) return;
-    onApplyModel(preview);
+    await onApplyModel(preview);
     resetValidation();
     pushLog({ tone: 'cyan', text: `${tab === 'json' ? 'JSON' : 'Expressões algébricas'} validado e aplicado`, time: new Date().toLocaleTimeString('pt-BR') });
     setPreview(null); setInputError(''); setTab('visual');
