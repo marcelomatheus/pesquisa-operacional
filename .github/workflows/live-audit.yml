@@ -1,0 +1,43 @@
+name: PivôNauta public-site interactive audit
+
+on:
+  push:
+    branches: [audit/live-site-2026-11-21]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live_audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install browser dependencies
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false @playwright/test@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Run browser interaction and mathematical API scenarios against published site
+        env:
+          TARGET_URL: https://pivonauta.celodev.com.br
+        run: node scripts/audit_live_site.mjs
+      - name: Publish structured audit results
+        if: always()
+        run: |
+          if [ -f validation-artifacts/live-audit/report.json ]; then
+            node -e 'const f=require("./validation-artifacts/live-audit/report.json");console.log(JSON.stringify({total:f.total,passed:f.passed,failed:f.failed},null,2))'
+          fi
+      - name: Upload evidence and browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pivonauta-live-audit-${{ github.run_id }}
+          path: validation-artifacts/live-audit/
+          if-no-files-found: ignore
+          retention-days: 14
