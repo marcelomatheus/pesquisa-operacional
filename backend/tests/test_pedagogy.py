@@ -4,7 +4,6 @@ from pivonauta.domain import Constraint, LinearProgram, Variable
 from pivonauta.main import app
 from pivonauta.simplex import solve_simplex
 from pivonauta.standard_form import describe_standard_form
-from pivonauta.tableau_trace import pivot_operations
 
 
 client = TestClient(app)

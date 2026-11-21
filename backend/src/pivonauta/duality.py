@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from .domain import Constraint, InvalidModel, LinearProgram, Variable, is_feasible
+from .domain import Constraint, InvalidModel, LinearProgram, Variable
 from .simplex import solve_simplex
 
 

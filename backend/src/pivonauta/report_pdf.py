@@ -7,8 +7,7 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import mm
-from reportlab.platypus import HRFlowable, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .report_graphics import BranchTreeFigure, GeometryFigure
 
@@ -254,8 +253,16 @@ def add_integer(story, st, result):
                 if certified else "Incumbente não certificado como ótimo."), "note")
     add_line(story, st, f"Valor inteiro/incumbente: {fmt(result.get('objective_value'))} | "
              f"Nós explorados: {result.get('explored_nodes', 0)} | "
-             f"Gap informado: {fmt(result.get('optimality_gap'))}")
+             f"Melhor limite global: {fmt(result.get('best_bound'))} | "
+             f"Gap relativo: {fmt(result.get('optimality_gap'))}")
     add_values(story, st, result.get("variables"))
+    best_rounding = result.get("best_rounding_candidate")
+    if best_rounding:
+        vector = ", ".join(f"{name}={fmt(value)}"
+                           for name, value in best_rounding["values"].items())
+        add_line(story, st, f"Melhor candidato arredondado viável dentre os testados: "
+                 f"{vector}; Z = {fmt(best_rounding['objective_value'])}. "
+                 "Este candidato não é, por si só, um certificado de ótimo.", "small")
     candidates = result.get("rounding_candidates") or []
     if candidates:
         story.append(Paragraph("Candidatos obtidos por arredondamento", st["subsection"]))

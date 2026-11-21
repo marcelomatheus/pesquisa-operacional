@@ -34,13 +34,6 @@ Limites default: `lower_bound: 0`, `upper_bound: null`; `lower_bound: null` indi
 A API não declara ótima uma busca inteira interrompida por limite de tempo/nós. `rounded_candidates`
 são apenas candidatos testados, **não soluções ótimas garantidas**.
 
-## Próximas etapas
-
-- Dualidade e ótimos alternativos com certificação completa.
-- Primitivas geométricas reais e integração com `FeasibleGraph`.
-- Relatórios exportáveis e integração integral do frontend.
-- Limites operacionais de execução e testes E2E.
-
 ## Análises matemáticas complementares
 
 Os seguintes endpoints usam **somente Python puro** no domínio matemático:
@@ -97,3 +90,26 @@ Cada nó do Branch and Bound agora inclui `branch_decision` estruturada, que per
 A camada `report_data.py` invoca os algoritmos próprios; `report_pdf.py` compõe texto e tabelas; `report_graphics.py` desenha gráficos vetoriais. ReportLab não executa otimização matemática. Casos não certificados e capítulos não aplicáveis são identificados no PDF.
 
 Teste com `pytest -q`, incluindo `tests/test_report_pdf.py`; as verificações incluem leitura do PDF com `pypdf`.
+
+## Confiabilidade e segurança — PR #11
+
+O domínio admite até **40 variáveis internas** para suportar o dual de até **30 restrições públicas mais 10 limites superiores**. A API continua aceitando até 10 variáveis originais e 30 restrições. O Branch and Bound informa limites globais seguros e gap relativo quando uma busca é interrompida; `best_rounding_candidate` escolhe apenas o melhor candidato viável dentre os arredondamentos testados, sem provar ótimo.
+
+Os endpoints JSON publicam schemas tipados no OpenAPI. Um orçamento de quatro requisições de cálculo simultâneas por processo devolve HTTP 429 (`SOLVER_BUSY`) ao ser excedido. O middleware rejeita corpos HTTP superiores a 100 KB durante a leitura. A geração de relatórios dispõe de orçamento total de processamento e identifica análises interrompidas.
+
+Validação local:
+
+```bash
+python -m pip install -e ".[dev]"
+ruff check src tests --select E4,E7,E9,F
+pytest -q
+```
+
+Validação matemática independente, apenas no ambiente de teste:
+
+```bash
+python -m pip install -e ".[dev,oracle]"
+pytest -q tests/test_solver_oracle.py
+```
+
+SciPy é uma dependência opcional **dos testes**, nunca do aplicativo de produção. Consulte [Revisão do backend PR #11](../../docs/REVISAO_BACKEND_PR11.md) para detalhes, limites e riscos.

@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import asdict, dataclass
 from math import isfinite
+from time import monotonic
 
 from .domain import LinearProgram, is_feasible, objective_value
 from .simplex import _pivot, solve_simplex, standardize
@@ -34,6 +35,7 @@ def analyze_optima(model: LinearProgram, *, max_bases: int = 200,
                    time_limit: float = 3.0) -> AlternativeOptimaResult:
     if not 1 <= max_bases <= 1000:
         raise ValueError('max_bases must be between 1 and 1000')
+    started = monotonic()
     solved = solve_simplex(model, max_iterations=max_iterations, time_limit=time_limit,
                            tolerance=tolerance, include_trace=True)
     if solved.status != 'optimal' or solved.variables is None:
@@ -64,7 +66,11 @@ def analyze_optima(model: LinearProgram, *, max_bases: int = 200,
 
     queue = deque([(current, bases)])
     visited = set()
+    timed_out = False
     while queue and len(visited) < max_bases:
+        if monotonic() - started >= time_limit:
+            timed_out = True
+            break
         tableau, basis = queue.popleft()
         key = tuple(basis)
         if key in visited:
@@ -97,10 +103,11 @@ def analyze_optima(model: LinearProgram, *, max_bases: int = 200,
                 _pivot(new_tableau, new_basis, leaving_row, entering, tolerance)
                 if tuple(new_basis) not in visited:
                     queue.append((new_tableau, new_basis))
-    if queue:
+    if queue or timed_out:
+        reason = ('Time limit reached during optimal-basis exploration' if timed_out
+                  else 'Maximum number of optimal bases reached')
         return AlternativeOptimaResult('undetermined', False, solved.objective_value,
-                                       solved.variables, None, len(visited), zero_initial,
-                                       'Maximum number of optimal bases reached')
+                                       solved.variables, None, len(visited), zero_initial, reason)
     return AlternativeOptimaResult('unique', True, solved.objective_value,
                                    solved.variables, None, len(visited), zero_initial,
                                    'No distinct optimal decision point exists in explored optimal bases')

@@ -142,6 +142,12 @@ Para gerar amostras visuais de PDF localmente, instale `pymupdf` e execute `pyth
 
 O exemplo **Radioterapia** permite demonstrar a diferença entre soluções contínuas e inteiras: mínimo contínuo `5,25`, ótimo inteiro `5,30`.
 
+## Confiabilidade matemática e validação independente
+
+O backend mantém a entrada pública de até 10 variáveis e 30 restrições, mas permite até 40 variáveis internas para construir os modelos duais. A API publica respostas tipadas, limita o consumo HTTP e cálculos concorrentes, e os relatórios têm orçamento próprio. O Branch and Bound preserva os certificados e passa a expor limites seguros de buscas interrompidas.
+
+A CI também compara soluções próprias com `scipy.optimize.linprog` e `scipy.optimize.milp` **somente nos testes**; não é incluído nenhum solver de terceiros na imagem de produção. Consulte [Revisão de confiabilidade do backend](docs/REVISAO_BACKEND_PR11.md).
+
 ## Limitações e advertências da v1
 
 - O gráfico matemático está disponível apenas para modelos com exatamente duas variáveis.

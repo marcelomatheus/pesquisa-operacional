@@ -48,7 +48,7 @@ def test_node_limit_never_claims_integer_optimal():
                                           ([.5, .5], "eq", 6), ([.6, .4], "ge", 6)])
     result = solve_branch_bound(model, max_nodes=1)
     assert result.status == "node_limit"
-    assert result.best_bound is None
+    assert result.best_bound == pytest.approx(5.25)
     assert result.optimality_gap is None
 
 

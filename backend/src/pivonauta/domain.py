@@ -10,6 +10,8 @@ from typing import Literal
 Sense = Literal["min", "max"]
 Operator = Literal["le", "ge", "eq"]
 Domain = Literal["continuous", "integer"]
+MAX_INTERNAL_VARIABLES = 40
+MAX_INTERNAL_CONSTRAINTS = 100
 
 
 class InvalidModel(ValueError):
@@ -42,12 +44,12 @@ class LinearProgram:
 
     def __post_init__(self) -> None:
         n = len(self.objective)
-        if not 1 <= n <= 10:
-            raise InvalidModel("The number of decision variables must be between 1 and 10")
+        if not 1 <= n <= MAX_INTERNAL_VARIABLES:
+            raise InvalidModel(f"The number of internal variables must be between 1 and {MAX_INTERNAL_VARIABLES}")
         if len(self.variables) != n:
             raise InvalidModel("Objective and variable dimensions differ")
-        if len(self.constraints) > 100:
-            raise InvalidModel("Too many constraints (maximum 30)")
+        if len(self.constraints) > MAX_INTERNAL_CONSTRAINTS:
+            raise InvalidModel(f"Too many internal constraints (maximum {MAX_INTERNAL_CONSTRAINTS})")
         if self.sense not in ("max", "min"):
             raise InvalidModel("Unsupported objective sense")
         if len({v.id for v in self.variables}) != n:
