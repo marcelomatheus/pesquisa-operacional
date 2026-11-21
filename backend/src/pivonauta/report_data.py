@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from time import monotonic
 
 from .alternatives import analyze_optima
 from .branch_bound import solve_branch_bound
@@ -12,13 +13,32 @@ from .simplex import solve_simplex
 SECTION_KEYS = ("model", "simplex", "integer", "geometry", "dual", "alternatives")
 
 
+REPORT_TOTAL_SECONDS = 25.0
+
+
 def collect_report(model, options) -> dict:
     sections = tuple(options.sections)
-    primal = solve_simplex(
-        model, max_iterations=500, time_limit=3.0, include_trace="simplex" in sections
-    ).to_dict()
+    deadline = monotonic() + REPORT_TOTAL_SECONDS
     analyses: dict[str, dict] = {}
     notices: list[str] = []
+
+    def available(maximum: float) -> float:
+        return max(0.001, min(maximum, deadline - monotonic()))
+
+    def can_run(section: str) -> bool:
+        if deadline - monotonic() > 0.01:
+            return True
+        analyses[section] = {
+            "status": "time_limit", "certified": False,
+            "message": "The overall report computation budget was exhausted",
+        }
+        notices.append(f"Analise de {section} interrompida pelo limite global de tempo.")
+        return False
+
+    primal = solve_simplex(
+        model, max_iterations=500, time_limit=available(3.0),
+        include_trace="simplex" in sections,
+    ).to_dict()
     if "integer" in sections:
         has_integer = any(variable.domain == "integer" for variable in model.variables)
         force_all = options.integer_mode == "all_integer"
@@ -28,10 +48,10 @@ def collect_report(model, options) -> dict:
                 "status": "not_applicable",
                 "message": "Nenhuma variavel inteira declarada e conversao integral desabilitada.",
             }
-        else:
+        elif can_run("integer"):
             analyses["integer"] = solve_branch_bound(
                 model, max_nodes=options.max_nodes, max_iterations=500,
-                time_limit=10.0, force_all_integer=force_all
+                time_limit=available(10.0), force_all_integer=force_all
             ).to_dict()
             analyses["integer"]["mode"] = (
                 "Todas as variaveis convertidas em inteiras" if force_all
@@ -40,27 +60,27 @@ def collect_report(model, options) -> dict:
             if analyses["integer"]["status"] != "optimal":
                 notices.append("A solucao inteira nao foi certificada como otima.")
     if "geometry" in sections:
-        if len(model.variables) == 2:
+        if len(model.variables) == 2 and can_run("geometry"):
             analyses["geometry"] = build_geometry(
                 model, force_all_integer=options.integer_mode == "all_integer",
-                max_integer_points=100,
+                max_integer_points=100, time_limit=available(3.0),
             ).to_dict()
-        else:
+        elif len(model.variables) != 2:
             notices.append("O grafico bidimensional exige exatamente duas variaveis.")
             analyses["geometry"] = {
                 "status": "not_applicable",
                 "message": "Representacao bidimensional indisponivel para este modelo.",
             }
-    if "dual" in sections:
+    if "dual" in sections and can_run("dual"):
         analyses["dual"] = solve_dual(
-            model, max_iterations=500, time_limit=3.0,
-            include_trace=True
+            model, max_iterations=500, time_limit=available(6.0) / 2,
+            include_trace=True,
         ).to_dict()
         if analyses["dual"]["status"] != "optimal":
             notices.append("A verificacao de dualidade forte nao foi certificada.")
-    if "alternatives" in sections:
+    if "alternatives" in sections and can_run("alternatives"):
         analyses["alternatives"] = analyze_optima(
-            model, max_bases=200, time_limit=3.0
+            model, max_bases=200, time_limit=available(3.0)
         ).to_dict()
         if not analyses["alternatives"]["certified"]:
             notices.append("O diagnostico de otimos alternativos e inconclusivo.")

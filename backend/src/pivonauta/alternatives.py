@@ -103,10 +103,11 @@ def analyze_optima(model: LinearProgram, *, max_bases: int = 200,
                 _pivot(new_tableau, new_basis, leaving_row, entering, tolerance)
                 if tuple(new_basis) not in visited:
                     queue.append((new_tableau, new_basis))
-    if queue:
+    if queue or timed_out:
+        reason = ('Time limit reached during optimal-basis exploration' if timed_out
+                  else 'Maximum number of optimal bases reached')
         return AlternativeOptimaResult('undetermined', False, solved.objective_value,
-                                       solved.variables, None, len(visited), zero_initial,
-                                       'Maximum number of optimal bases reached')
+                                       solved.variables, None, len(visited), zero_initial, reason)
     return AlternativeOptimaResult('unique', True, solved.objective_value,
                                    solved.variables, None, len(visited), zero_initial,
                                    'No distinct optimal decision point exists in explored optimal bases')

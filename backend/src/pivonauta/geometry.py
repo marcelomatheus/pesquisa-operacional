@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from itertools import combinations
 from math import atan2, hypot, isfinite
+from time import monotonic
 
 from .domain import InvalidModel, LinearProgram, Variable, is_feasible
 from .geometry_overlays import integer_lattice, objective_contours, optimal_face
@@ -158,7 +159,13 @@ def _dimension(points: list[tuple[float, float]], tol: float) -> int | None:
 def build_geometry(model: LinearProgram, *, tolerance: float = 1e-8,
                    show_integer_lattice: bool = True,
                    force_all_integer: bool = False,
-                   max_integer_points: int = 300) -> GeometryResult:
+                   max_integer_points: int = 300,
+                   time_limit: float = 3.0) -> GeometryResult:
+    started = monotonic()
+
+    def remaining():
+        return max(0.001, time_limit - (monotonic() - started))
+
     if len(model.variables) != 2:
         raise InvalidModel('Geometric view supports exactly two decision variables')
     lines = _boundaries(model)
@@ -166,7 +173,7 @@ def build_geometry(model: LinearProgram, *, tolerance: float = 1e-8,
     feasibility_model = LinearProgram(model.name, 'max', (0.0, 0.0), model.constraints,
                                       tuple(Variable(v.id, 'continuous', v.lower_bound, v.upper_bound)
                                             for v in model.variables))
-    feasible = solve_simplex(feasibility_model, tolerance=tolerance, include_trace=False)
+    feasible = solve_simplex(feasibility_model, tolerance=tolerance, time_limit=remaining(), include_trace=False)
     zero_view = {'x_min': 0.0, 'x_max': 10.0, 'y_min': 0.0, 'y_max': 10.0}
     if feasible.status == 'infeasible':
         return GeometryResult('infeasible', 'empty', None, None, zero_view, [], [], [],
@@ -193,7 +200,7 @@ def build_geometry(model: LinearProgram, *, tolerance: float = 1e-8,
         vertices.sort(key=lambda p: atan2(p[1]-cy, p[0]-cx))
     point = tuple(feasible.variables[v.id] for v in model.variables)
     optimum = solve_simplex(feasibility_model if all(c == 0 for c in model.objective)
-                            else model, tolerance=tolerance, include_trace=False)
+                            else model, tolerance=tolerance, time_limit=remaining(), include_trace=False)
     opt_pt = ([optimum.variables[v.id] for v in model.variables]
               if optimum.status == 'optimal' and optimum.variables else None)
     anchors = vertices + [point] + ([tuple(opt_pt)] if opt_pt else [])
