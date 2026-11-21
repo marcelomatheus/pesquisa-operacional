@@ -38,7 +38,7 @@ def test_academic_report_labels_are_localized():
 
 
 def test_certificate_messages_are_translated_without_changing_status():
-    assert "Não" in report_message("Phase I optimum is negative; no feasible basis exists")
+    assert "não encontrou uma base viável" in report_message("Phase I optimum is negative; no feasible basis exists")
     assert "inviável" in report_message("Phase II stopped: infeasible").lower()
     assert "pontos viáveis distintos" in report_message(
         "Distinct feasible points with identical objective value were verified"
