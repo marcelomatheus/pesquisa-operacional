@@ -10,6 +10,7 @@ import {
 } from '../services/solverApi';
 import { TableauViewer } from '../components/TableauViewer';
 import { OptimizationPlot } from '../components/OptimizationPlot';
+import { formatRegionType, translateSolverMessage } from '../services/mathPresentation';
 
 function AnalysisHeader({ title, eyebrow, description, icon: Icon }) {
   const navigate = useNavigate();
@@ -94,7 +95,7 @@ export function DualAnalysis({ model, setSelectedEntity }) {
       <section className="panel" style={{ padding: 20 }}>
         <strong>Resultado do dual</strong><p>{SOLVE_STATUSES[data.dual?.status] || data.dual?.status || 'Não disponível'} · <VariableValues values={data.dual?.variables} /></p>
         {data.objective_offset !== 0 && <p>Constante do deslocamento das variáveis do primal: {displayNumber(data.objective_offset)}</p>}
-        <p>{data.message}</p>
+        <p>{translateSolverMessage(data.message)}</p>
       </section>
       <TableauViewer result={data.dual} source="dual" onInspect={setSelectedEntity} compact />
     </>}
@@ -112,7 +113,7 @@ export function AlternativesAnalysis({ model }) {
     {data && <section className="diagnostic-layout">
       <article className="panel" style={{ padding: 28 }}>
         <div className="panel__header"><div><span className="panel-kicker">CERTIFICADO DE OTIMALIDADE</span><h2>{title}</h2></div><span className={`status-pill ${data.certified ? 'tone-success' : 'tone-violet'}`}>{data.certified ? 'Verificado' : 'Não certificado'}</span></div>
-        <p>{data.message}</p>
+        <p>{translateSolverMessage(data.message)}</p>
         <p><strong>Valor ótimo:</strong> {displayNumber(data.objective_value)}</p>
         <p><strong>Base de referência:</strong> <VariableValues values={data.reference} /></p>
         {data.alternative && <p><strong>Outro ponto ótimo:</strong> <VariableValues values={data.alternative} /></p>}
@@ -152,7 +153,7 @@ export function GeometryAnalysis({ model, result, integerTask, onStartInteger })
     <AsyncState state={state} onRetry={retry} />
     {geometry && <section className="graph-workbench">
       <article className="panel graph-main" style={{ minHeight: 430, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        {geometry.status === 'feasible' ? <OptimizationPlot geometry={geometry} model={model} layers={layers} integerTask={integerTask} alternatives={alternativesState.data} /> : <div style={{ padding: 30 }}><h2>{geometry.status === 'infeasible' ? 'Região vazia' : 'Representação não certificada'}</h2><p>{geometry.message}</p></div>}
+        {geometry.status === 'feasible' ? <OptimizationPlot geometry={geometry} model={model} layers={layers} integerTask={integerTask} alternatives={alternativesState.data} /> : <div style={{ padding: 30 }}><h2>{geometry.status === 'infeasible' ? 'Região vazia' : 'Representação não certificada'}</h2><p>{translateSolverMessage(geometry.message)}</p></div>}
       </article>
       <aside className="panel layer-panel">
         <div className="panel__header"><div><span className="panel-kicker">CAMADAS</span><h2>Composição visual</h2></div><Target size={19} /></div>
@@ -176,7 +177,7 @@ export function GeometryAnalysis({ model, result, integerTask, onStartInteger })
         </section>
         <div className="coordinate-card">
           <small>ANÁLISE</small>
-          <div><span>Tipo</span><strong>{geometry.region_type}</strong></div>
+          <div><span>Tipo</span><strong>{formatRegionType(geometry.region_type)}</strong></div>
           <div><span>Limitada</span><strong>{geometry.bounded === null ? '—' : geometry.bounded ? 'Sim' : 'Não'}</strong></div>
           <div><span>Dimensão</span><strong>{geometry.dimension ?? '—'}</strong></div>
           <div><span>Vértices</span><strong>{geometry.vertices.length}</strong></div>

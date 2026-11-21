@@ -1,3 +1,5 @@
+import { formatCount, formatMathEvent, formatSolverStatus, translateSolverMessage } from './mathPresentation.js';
+
 const MAX_EVENTS = 600;
 
 const phaseName = phase => ({
@@ -40,7 +42,7 @@ export function fromSimplexResult(result, { runId, modelName = '', recordedAt = 
   for (const [step, snapshot] of (result.iterations || []).entries()) {
     const pivot = snapshot.pivot;
     let level = 'info';
-    let text = `${phaseName(snapshot.phase)} · ${snapshot.event}`;
+    let text = `${phaseName(snapshot.phase)} · ${formatMathEvent(snapshot.event)}`;
     if (snapshot.event === 'pivot') {
       text = `${phaseName(snapshot.phase)} · ${pivot?.entering || '?'} entra, ${pivot?.leaving || '?'} sai`;
     } else if (snapshot.event === 'optimal') {
@@ -61,8 +63,8 @@ export function fromSimplexResult(result, { runId, modelName = '', recordedAt = 
   events.push(createConsoleEvent({
     id: `${runId}-end`, runId, modelName, recordedAt, category: 'simplex',
     level: result.status === 'optimal' ? 'success' : 'warning',
-    text: `Simplex: ${result.status}`,
-    details: `${result.message || ''} · ${result.pivot_count ?? 0} pivoteamentos`,
+    text: `Simplex: ${formatSolverStatus(result.status)}`,
+    details: `${translateSolverMessage(result.message)} · ${formatCount(result.pivot_count ?? 0, 'pivoteamento', 'pivoteamentos')}`,
   }));
   return events;
 }
@@ -77,16 +79,16 @@ export function fromBranchBoundResult(result, { runId, modelName = '', recordedA
       ? 'warning' : ['integer', 'pruned_bound'].includes(node.status) ? 'success' : 'info';
     events.push(createConsoleEvent({
       id: `${runId}-node-${index}`, runId, modelName, recordedAt, category: 'branch_bound', level,
-      text: `Nó ${node.id}: ${node.status}`,
-      details: `${node.branch_constraint || 'raiz'} · relaxação ${node.relaxation_status} · Z=${node.relaxation_objective ?? '—'}`,
+      text: `Nó ${node.id}: ${formatSolverStatus(node.status)}`,
+      details: `${node.branch_constraint || 'raiz'} · relaxação ${formatSolverStatus(node.relaxation_status)} · Z=${node.relaxation_objective ?? '—'}`,
       route: '/results/integer', metadata: { nodeId: node.id },
     }));
   }
   events.push(createConsoleEvent({
     id: `${runId}-end`, runId, modelName, recordedAt, category: 'branch_bound',
     level: result.status === 'optimal' ? 'success' : 'warning',
-    text: `Branch and Bound: ${result.status}`,
-    details: `${result.message || ''} · ${result.explored_nodes ?? 0} nós`,
+    text: `Branch and Bound: ${formatSolverStatus(result.status)}`,
+    details: `${translateSolverMessage(result.message)} · ${formatCount(result.explored_nodes ?? 0, 'nó', 'nós')}`,
     route: '/results/integer',
   }));
   return events;
