@@ -79,6 +79,45 @@ bash scripts/deploy_manual.sh /caminho/privado/pivonauta.env
 
 O nome fixo `pivonauta-prod` evita que o Compose reutilize o projeto Docker do credit-guard. Os routers e serviços `pivonauta` são exclusivos e não substituem `pipeline-credit-api`.
 
+## Corrigir/reiniciar somente o frontend Nginx (read-only)
+
+O container `web` executa com `read_only: true`, `cap_drop: ALL` e `user: "101:101"`. A configuração principal do Nginx direciona o PID para `/tmp/nginx.pid` e define explicitamente `client_body_temp_path`, `proxy_temp_path`, `fastcgi_temp_path`, `uwsgi_temp_path` e `scgi_temp_path` em `/tmp/nginx`. O inicializador cria essas pastas no `tmpfs` antes de iniciar o processo. **Não é necessário montar ou alterar permissões de `/var/cache/nginx`.**
+
+Após mesclar a correção no repositório e atualizar a cópia existente da VPS:
+
+```bash
+cd /opt/pivonauta
+git pull --ff-only
+bash scripts/redeploy_web.sh
+```
+
+O comando primeiro exige que a API existente esteja `healthy`. Em seguida executa exclusivamente:
+
+```bash
+docker compose --env-file .env.production -f compose.production.yaml \
+  up -d --build --no-deps --force-recreate --wait web
+```
+
+A API **não é reconstruída, reiniciada ou recriada**. O script verifica que seu ID de container permanece igual, valida o `web` como saudável, o filesystem somente leitura, o usuário sem privilégios, os diretórios temporários, `GET /`, `GET /api/v1/health/ready` e a ausência de reinícios. Por fim executa `scripts/smoke_production.py` contra **o domínio HTTPS publicado**, usando o `DOMAIN_NAME` definido em `.env.production`.
+
+Se quiser explicitar o domínio ou usar outro arquivo de ambiente:
+
+```bash
+PIVONAUTA_URL=https://pivonauta.seu-dominio.com \
+  bash scripts/redeploy_web.sh /opt/pivonauta/.env.production
+```
+
+O smoke exige conectividade HTTP ao domínio público. Se o Cloudflare Access exigir login interativo, execute o teste com acesso autorizado ou realize a verificação do domínio em um contexto de rede autenticado; não exponha a aplicação removendo controles de acesso só para satisfazer o teste.
+
+Para inspecionar erros de boot e saúde sem afetar a API:
+
+```bash
+docker compose --env-file .env.production -f compose.production.yaml logs --tail 100 web
+docker compose --env-file .env.production -f compose.production.yaml ps
+```
+
+A CI tem um teste dedicado (`readonly_web`) que inicia o **Compose de produção** com um simulacro da rede Traefik, confere estado `healthy`, `RestartCount=0`, temporários em `/tmp`, refaz somente o container web e executa um smoke real de HTML, Simplex e PDF. Essa validação em container **não substitui a verificação operacional do domínio publicado na VPS**.
+
 ## Verificação após deploy
 
 Verifique o estado dos containers:

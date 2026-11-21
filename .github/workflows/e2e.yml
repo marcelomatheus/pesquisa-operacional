@@ -85,3 +85,61 @@ jobs:
       - name: Stop application stack
         if: always()
         run: docker compose down --volumes --remove-orphans
+
+  readonly_web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create isolated CI equivalent of shared proxy network
+        run: docker network create celo-network
+      - name: Build and start read-only production stack
+        run: docker compose --env-file .env.production.example -f compose.production.yaml up -d --build --wait
+      - name: Verify read-only Nginx process, writable temporary directories and stability
+        run: |
+          COMPOSE="docker compose --env-file .env.production.example -f compose.production.yaml"
+          WEB_ID=$($COMPOSE ps -q web)
+          test -n "$WEB_ID"
+          test "$(docker inspect -f '{{.State.Health.Status}}' "$WEB_ID")" = healthy
+          test "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' "$WEB_ID")" = true
+          test "$(docker inspect -f '{{.Config.User}}' "$WEB_ID")" = 101:101
+          test "$(docker inspect -f '{{.RestartCount}}' "$WEB_ID")" = 0
+          $COMPOSE exec -T web nginx -t
+          $COMPOSE exec -T web sh -c '
+            test "$(id -u)" = 101
+            for directory in client_body proxy fastcgi uwsgi scgi; do
+              test -w "/tmp/nginx/$directory" || exit 1
+            done
+            wget -q -O /dev/null http://127.0.0.1:18473/
+            wget -q -O /dev/null http://127.0.0.1:18473/api/v1/health/ready
+          '
+          sleep 5
+          test "$(docker inspect -f '{{.State.Health.Status}}' "$WEB_ID")" = healthy
+          test "$(docker inspect -f '{{.RestartCount}}' "$WEB_ID")" = 0
+      - name: Rebuild and recreate only web without touching API
+        run: |
+          COMPOSE="docker compose --env-file .env.production.example -f compose.production.yaml"
+          API_BEFORE=$($COMPOSE ps -q api)
+          WEB_BEFORE=$($COMPOSE ps -q web)
+          $COMPOSE up -d --build --no-deps --force-recreate --wait web
+          API_AFTER=$($COMPOSE ps -q api)
+          WEB_AFTER=$($COMPOSE ps -q web)
+          test "$API_BEFORE" = "$API_AFTER"
+          test "$WEB_BEFORE" != "$WEB_AFTER"
+          test "$(docker inspect -f '{{.State.Health.Status}}' "$WEB_AFTER")" = healthy
+          test "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' "$WEB_AFTER")" = true
+          test "$(docker inspect -f '{{.RestartCount}}' "$WEB_AFTER")" = 0
+      - name: Exercise frontend, Simplex and PDF on production network
+        run: |
+          docker run --rm --network celo-network \
+            -v "$PWD/scripts:/workspace:ro" -w /workspace \
+            -e PIVONAUTA_URL=http://web:18473 \
+            python:3.13-alpine python3 smoke_production.py
+      - name: Show production container logs on failure
+        if: failure()
+        run: docker compose --env-file .env.production.example -f compose.production.yaml logs --no-color
+      - name: Stop isolated production environment
+        if: always()
+        run: |
+          docker compose --env-file .env.production.example -f compose.production.yaml down --remove-orphans
+          docker network rm celo-network || true

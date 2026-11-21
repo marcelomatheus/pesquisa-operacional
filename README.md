@@ -99,6 +99,16 @@ PIVONAUTA_URL=https://pivonauta.seu-dominio.com python3 scripts/smoke_production
 
 O procedimento detalhado, a segurança e o rollback manual estão em [Deploy manual na VPS com Traefik](docs/DEPLOY_TRAEFIK_MANUAL.md). O manifesto de desenvolvimento e os testes atuais permanecem inalterados.
 
+### Atualização isolada do frontend na VPS
+
+Para aplicar a correção do Nginx com `read_only: true` em uma instalação de produção já existente, atualize o repositório e execute:
+
+```bash
+bash scripts/redeploy_web.sh
+```
+
+O script reconstrói **somente o serviço `web`**, verifica a API sem reiniciá-la, exige o estado `healthy`, confere que não ocorreram reinícios e testa frontend, otimização e PDF pelo domínio publicado. Os diretórios temporários do Nginx ficam em `/tmp`, sem gravações em `/var/cache/nginx`. Consulte [a seção de atualização do frontend na VPS](docs/DEPLOY_TRAEFIK_MANUAL.md#corrigirreiniciar-somente-o-frontend-nginx-read-only).
+
 ### Publicação em serviços separados
 
 Defina `VITE_API_URL=https://sua-api.example/api/v1` antes de compilar o React, e configure `PIVONAUTA_ALLOWED_ORIGINS=https://seu-frontend.example` no backend. São permitidas múltiplas origens separadas por vírgula; não utilize `*` indiscriminadamente.
