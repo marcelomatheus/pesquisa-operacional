@@ -71,9 +71,11 @@ async function test(name, kind, fn) {
 }
 async function request(route, body, method) {
   const before=Date.now();
+  const payload = body?.model ? {...body, model:{...body.model}} : body;
+  if (payload?.model) delete payload.model.schema_version;
   const response=await fetch(host + route, {
     method:method||'POST',
-    ...(body===undefined ? {} : {headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
+    ...(payload===undefined ? {} : {headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),
     signal:AbortSignal.timeout(22000),
   });
   const bytes=Buffer.from(await response.arrayBuffer());
@@ -266,6 +268,7 @@ await inBrowser('05-dual',async page=>{
  await solveUI(page);
  await page.goto(host+'/#/results/dual');
  await page.getByRole('heading',{name:'Modelo dual'}).waitFor({timeout:18000});
+ await page.getByText('Dualidade forte verificada').waitFor({timeout:18000});
  return {excerpt:(await page.locator('main').innerText()).slice(0,700)};
 });
 await inBrowser('06-radioterapia-inteira',async page=>{
@@ -293,6 +296,7 @@ await inBrowser('09-otimos-multiplos',async page=>{
  await solveUI(page);
  await page.goto(host+'/#/results/analysis');
  await page.getByRole('heading',{name:'Ótimos múltiplos'}).waitFor({timeout:18000});
+ await page.getByText('Múltiplos ótimos comprovados').waitFor({timeout:18000});
  return {excerpt:(await page.locator('main').innerText()).slice(0,800)};
 });
 await inBrowser('10-modelo-3-variaveis',async page=>{
@@ -320,8 +324,12 @@ await inBrowser('12-biblioteca-persistencia',async page=>{
  await page.goto(host+'/#/library');
  await page.getByRole('button',{name:'Salvar modelo ativo'}).click();
  await page.getByRole('heading',{name:scenarios.wyndor.name}).first().waitFor({timeout:14000});
- await page.reload();
+ await page.reload({waitUntil:'domcontentloaded'});
  await page.goto(host+'/#/editor');
+ await page.waitForFunction(
+   expected=>document.querySelector('main .model-name-input')?.value===expected,
+   scenarios.wyndor.name, {timeout:6000},
+ );
  const restored=await page.locator('main .model-name-input').inputValue();
  assert(restored===scenarios.wyndor.name,'Restaurado: '+restored);
  return {restored};
