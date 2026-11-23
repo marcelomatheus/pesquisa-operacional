@@ -1,0 +1,43 @@
+name: Capture Data Controle 3 evidence
+
+on:
+  push:
+    branches: [evidence/data-controle-3-prs]
+
+permissions:
+  contents: write
+
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install Chromium
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false @playwright/test@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Capture real GitHub PR and published application pages
+        run: node scripts/capture_data_controle3.mjs
+      - name: Commit verified screenshots on evidence-only branch
+        if: always()
+        run: |
+          if test -d docs/evidencias-data-controle-3 && find docs/evidencias-data-controle-3 -type f -name '*.png' | grep -q .; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/evidencias-data-controle-3/*.png
+            git diff --cached --quiet || git commit -m "docs(evidence): capture merged PRs and PivôNauta production"
+            git push
+          fi
+      - name: Upload archive
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidencias-data-controle-3
+          path: docs/evidencias-data-controle-3/
+          if-no-files-found: ignore
